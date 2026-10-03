@@ -37,6 +37,10 @@ Use `gpioinfo` para ver chips/linhas (no Pi 5 o chip pode ser `gpiochip4` em ker
 - A codificação é por software (`libx264 ultrafast`): no Pi 4, 1280x720@30 com `VIDEO_FORMAT=mjpeg` usa cerca de uma CPU.
 - Reiniciar a câmera continua a numeração dos segmentos para não sobrescrever arquivos.
 
+## Logs
+
+Eventos por segmento (1/s) ficam ocultos; use `LOG_VERBOSE=true` para depurar. O `setup.sh` limita o journal a 100 MB (`SystemMaxUse`).
+
 ## Segurança
 
 A UI não tem autenticação: use apenas em rede local confiável.

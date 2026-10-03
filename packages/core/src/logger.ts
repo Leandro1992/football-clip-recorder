@@ -1,6 +1,13 @@
 import type { Logger } from './interfaces';
 
+// Emitted once per segment (~1/s); hidden unless LOG_VERBOSE=true to avoid flooding logs/SD card.
+const VERBOSE_EVENTS = new Set(['BUFFER_SEGMENT_CREATED', 'BUFFER_SEGMENT_DELETED']);
+
 function write(level: 'info' | 'warn' | 'error', event: string, payload?: Record<string, unknown>): void {
+  if (VERBOSE_EVENTS.has(event) && process.env.LOG_VERBOSE !== 'true') {
+    return;
+  }
+
   const line = JSON.stringify({
     level,
     event,

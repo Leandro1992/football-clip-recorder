@@ -14,6 +14,11 @@ if [ "${NODE_MAJOR:-0}" -lt 20 ]; then
   sudo apt-get install -y nodejs
 fi
 
+# Limita o journal para nao desgastar o SD card
+sudo mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=100M\n' | sudo tee /etc/systemd/journald.conf.d/football-clip-recorder.conf >/dev/null
+sudo systemctl restart systemd-journald
+
 sudo usermod -aG video,audio,gpio "$APP_USER" || true
 
 cd "$APP_DIR"
