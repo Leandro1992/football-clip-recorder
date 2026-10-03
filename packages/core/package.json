@@ -1,0 +1,9 @@
+{
+  "name": "@football-clip-recorder/core",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@football-clip-recorder/config": "0.1.0"
+  }
+}

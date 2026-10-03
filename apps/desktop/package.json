@@ -1,0 +1,21 @@
+{
+  "name": "@football-clip-recorder/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "run-p dev:renderer dev:main dev:electron",
+    "dev:renderer": "vite",
+    "dev:main": "tsc -p tsconfig.main.json -w --preserveWatchOutput",
+    "dev:electron": "wait-on tcp:5173 dist/main/main.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "build:renderer": "vite build"
+  },
+  "dependencies": {
+    "@football-clip-recorder/camera": "0.1.0",
+    "@football-clip-recorder/config": "0.1.0",
+    "@football-clip-recorder/core": "0.1.0",
+    "@football-clip-recorder/hardware": "0.1.0",
+    "@football-clip-recorder/storage": "0.1.0",
+    "@football-clip-recorder/video": "0.1.0"
+  }
+}

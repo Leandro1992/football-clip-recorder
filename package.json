@@ -1,0 +1,46 @@
+{
+  "name": "football-clip-recorder",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @football-clip-recorder/desktop",
+    "build": "tsc -b && tsc -p apps/desktop/tsconfig.renderer.json --noEmit && npm run build:renderer -w @football-clip-recorder/desktop",
+    "test": "vitest run",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "format": "prettier --write .",
+    "start": "node apps/server/dist/index.js",
+    "camera:list": "tsx packages/camera/src/cli/list-camera-devices.ts",
+    "video:test": "vitest run packages/video"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
+    "dotenv": "^16.4.5",
+    "electron": "^37.3.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "cross-env": "^10.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.21",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.10",
+    "vitest": "^1.6.0",
+    "wait-on": "^8.0.5"
+  }
+}

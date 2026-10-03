@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@football-clip-recorder/config": ["packages/config/src/index.ts"],
+      "@football-clip-recorder/core": ["packages/core/src/index.ts"],
+      "@football-clip-recorder/video": ["packages/video/src/index.ts"],
+      "@football-clip-recorder/camera": ["packages/camera/src/index.ts"],
+      "@football-clip-recorder/hardware": ["packages/hardware/src/index.ts"],
+      "@football-clip-recorder/storage": ["packages/storage/src/index.ts"]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.vite/
+.env
+runtime/
+mock-s3/
+coverage/
+*.log
+*.tsbuildinfo
+tests/*.js
+tests/*.d.ts
+tests/*.map
+*.tgz

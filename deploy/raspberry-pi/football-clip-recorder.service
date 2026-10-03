@@ -1,0 +1,16 @@
+[Unit]
+Description=Football Clip Recorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+SupplementaryGroups=video audio gpio
+WorkingDirectory=__APP_DIR__
+ExecStart=__NODE__ apps/server/dist/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
