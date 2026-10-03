@@ -17,7 +17,7 @@ bash deploy/raspberry-pi/setup.sh
 ```
 
 O script instala ffmpeg, v4l-utils, alsa-utils, gpiod e Node 20, cria `.env` a partir de `deploy/raspberry-pi/env.example`,
-faz o build e registra o serviço systemd `football-clip-recorder`. Para atualizar: `git pull && npm install && npm run build && sudo systemctl restart football-clip-recorder`.
+faz o build e registra o serviço systemd `football-clip-recorder`. Para atualizar: `bash deploy/raspberry-pi/update.sh` (git pull, npm install, build e restart do serviço).
 
 Logs: `journalctl -u football-clip-recorder -f`.
 

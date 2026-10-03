@@ -85,6 +85,7 @@ bash deploy/raspberry-pi/setup.sh
 O script instala ffmpeg, v4l-utils, alsa-utils, gpiod e Node 20, cria o `.env` a partir de `deploy/raspberry-pi/env.example`, compila e registra o serviço systemd `football-clip-recorder` (inicia no boot). Depois acesse `http://<ip-do-pi>:3000` de qualquer dispositivo da rede.
 
 ```bash
+bash deploy/raspberry-pi/update.sh               # atualizar (git pull + build + restart)
 journalctl -u football-clip-recorder -f          # logs
 sudo systemctl restart football-clip-recorder    # após editar o .env
 v4l2-ctl --list-devices                          # câmeras
