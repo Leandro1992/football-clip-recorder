@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { Logger, TriggerButton } from '@football-clip-recorder/core';
 
@@ -34,7 +35,6 @@ export function buildGpiomonArguments(options: {
       bias,
       '--debounce-period',
       `${Math.max(1, Math.min(options.debounceMs, 100))}ms`,
-      '--line-buffered',
       String(options.pin),
     ];
   }
@@ -104,14 +104,19 @@ export class GpioButton implements TriggerButton {
   }
 
   private launch(): void {
-    const command = this.options.gpiomonPath ?? 'gpiomon';
-    const args = buildGpiomonArguments({
+    const gpiomon = this.options.gpiomonPath ?? 'gpiomon';
+    const args0 = buildGpiomonArguments({
       majorVersion: this.majorVersion ?? 1,
       chip: this.options.chip ?? 'gpiochip0',
       pin: this.options.pin,
       activeLow: this.options.activeLow ?? true,
       debounceMs: this.options.debounceMs ?? 50,
     });
+
+    // gpiomon block-buffers stdout when piped; stdbuf makes each event arrive immediately.
+    const useStdbuf = !this.options.spawnProcess && existsSync('/usr/bin/stdbuf');
+    const command = useStdbuf ? '/usr/bin/stdbuf' : gpiomon;
+    const args = useStdbuf ? ['-oL', gpiomon, ...args0] : args0;
 
     const child = (this.options.spawnProcess ?? spawn)(command, args) as ChildProcessWithoutNullStreams;
     this.process = child;

@@ -11,7 +11,7 @@ describe('buildGpiomonArguments', () => {
       buildGpiomonArguments({ majorVersion: 2, chip: 'gpiochip0', pin: 17, activeLow: true, debounceMs: 50 }),
     ).toEqual([
       '--chip', 'gpiochip0', '--edges', 'falling', '--bias', 'pull-up',
-      '--debounce-period', '50ms', '--line-buffered', '17',
+      '--debounce-period', '50ms', '17',
     ]);
   });
 
