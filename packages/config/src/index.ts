@@ -39,6 +39,8 @@ export interface AppConfig {
     awsRegion?: string;
     awsS3Bucket?: string;
     s3Endpoint?: string;
+    awsAccessKeyId?: string;
+    awsSecretAccessKey?: string;
     s3Prefix?: string;
     maxDiskPercent: number;
     retentionIntervalSeconds: number;
@@ -186,6 +188,8 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       awsRegion: env.AWS_REGION || undefined,
       awsS3Bucket: env.AWS_S3_BUCKET || undefined,
       s3Endpoint: env.S3_ENDPOINT || undefined,
+      awsAccessKeyId: env.AWS_ACCESS_KEY_ID || undefined,
+      awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY || undefined,
       s3Prefix: env.S3_PREFIX || undefined,
       maxDiskPercent: maxDiskPercent,
       retentionIntervalSeconds: parseRequiredPositiveInteger(

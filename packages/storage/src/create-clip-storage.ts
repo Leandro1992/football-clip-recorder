@@ -14,6 +14,8 @@ export function createClipStorage(config: AppConfig, logger: Logger): ClipStorag
       bucket: config.storage.awsS3Bucket,
       prefix: config.storage.s3Prefix,
       endpoint: config.storage.s3Endpoint,
+      accessKeyId: config.storage.awsAccessKeyId,
+      secretAccessKey: config.storage.awsSecretAccessKey,
     });
   }
 

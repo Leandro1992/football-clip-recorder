@@ -8,6 +8,8 @@ export interface S3StorageOptions {
   bucket: string;
   prefix?: string;
   endpoint?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
 }
 
 export class S3Storage implements ClipStorage {
@@ -16,6 +18,9 @@ export class S3Storage implements ClipStorage {
   constructor(private readonly options: S3StorageOptions) {
     this.client = new S3Client({
       region: options.region,
+      ...(options.accessKeyId && options.secretAccessKey
+        ? { credentials: { accessKeyId: options.accessKeyId, secretAccessKey: options.secretAccessKey } }
+        : {}),
       ...(options.endpoint ? { endpoint: options.endpoint, forcePathStyle: true } : {}),
     });
   }
