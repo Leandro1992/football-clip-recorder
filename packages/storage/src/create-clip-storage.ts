@@ -12,6 +12,8 @@ export function createClipStorage(config: AppConfig, logger: Logger): ClipStorag
     return new S3Storage({
       region: config.storage.awsRegion,
       bucket: config.storage.awsS3Bucket,
+      prefix: config.storage.s3Prefix,
+      endpoint: config.storage.s3Endpoint,
     });
   }
 

@@ -94,6 +94,10 @@ arecord -l                                       # microfones (card/device -> pl
 
 Detalhes (GPIO, áudio, desempenho): [docs/raspberry-pi-port.md](docs/raspberry-pi-port.md).
 
+## Armazenamento e sincronização
+
+Clipes usam até 50% do espaço livre do disco (`STORAGE_MAX_PERCENT_FREE`), apagando os mais antigos; uploads pausam sem internet e retomam ao reconectar. Detalhes e sugestão de nuvem (Cloudflare R2): [docs/storage-and-sync.md](docs/storage-and-sync.md).
+
 ## Desenvolvimento
 
 ```bash

@@ -3,3 +3,6 @@ export * from './interfaces';
 export * from './logger';
 export * from './upload-queue';
 export * from './clip-recorder-application';
+export * from './storage-retention';
+export * from './connectivity-monitor';
+export * from './sync-service';

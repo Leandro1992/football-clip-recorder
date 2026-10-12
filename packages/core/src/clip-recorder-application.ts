@@ -105,6 +105,47 @@ export class ClipRecorderApplication {
     this.emitStatus();
   }
 
+  setUploadsPaused(paused: boolean): void {
+    this.uploadQueue.setPaused(paused);
+  }
+
+  /** Registers a clip found on disk (e.g. after a restart); pending ones are queued for upload. */
+  restoreClip(clip: ClipMetadata): void {
+    if (this.clips.has(clip.id)) {
+      return;
+    }
+    this.upsertClip(clip);
+    if (clip.storageStatus === 'pending') {
+      this.uploadQueue.enqueue(clip);
+    }
+  }
+
+  /** Re-queues clips whose previous upload failed. */
+  retryFailedUploads(): void {
+    for (const clip of this.clips.values()) {
+      if (clip.storageStatus === 'pending' && !this.uploadQueue.isQueued(clip.id)) {
+        this.uploadQueue.retry(clip);
+      }
+    }
+  }
+
+  forgetClipFiles(filePaths: string[]): void {
+    const targets = new Set(filePaths.map((filePath) => path.resolve(filePath)));
+    let changed = false;
+    for (const [id, clip] of this.clips) {
+      if (targets.has(path.resolve(clip.filePath))) {
+        this.clips.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      const list = this.getSortedClips();
+      for (const listener of this.clipListeners) {
+        listener(list);
+      }
+    }
+  }
+
   getSnapshot(): ApplicationSnapshot {
     return {
       status: { ...this.status },

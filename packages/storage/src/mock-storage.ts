@@ -35,7 +35,6 @@ export class MockStorage implements ClipStorage {
 
     const retain = this.options.maxRetainedClips ?? 5;
     await pruneOldClips(this.options.rootDirectory, retain, this.options.logger);
-    await pruneOldClips(path.dirname(filePath), retain, this.options.logger);
 
     return {
       provider: 'mock',

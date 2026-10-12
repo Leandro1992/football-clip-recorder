@@ -7,13 +7,17 @@ export interface S3StorageOptions {
   region: string;
   bucket: string;
   prefix?: string;
+  endpoint?: string;
 }
 
 export class S3Storage implements ClipStorage {
   private readonly client: S3Client;
 
   constructor(private readonly options: S3StorageOptions) {
-    this.client = new S3Client({ region: options.region });
+    this.client = new S3Client({
+      region: options.region,
+      ...(options.endpoint ? { endpoint: options.endpoint, forcePathStyle: true } : {}),
+    });
   }
 
   async upload(filePath: string, metadata: ClipMetadata): Promise<UploadResult> {

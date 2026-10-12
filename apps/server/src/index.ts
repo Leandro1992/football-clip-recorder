@@ -1,7 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, ensureRuntimeDirectories } from '@football-clip-recorder/config';
-import { ClipRecorderApplication, ConsoleLogger, type TriggerButton } from '@football-clip-recorder/core';
+import {
+  ClipRecorderApplication,
+  ConnectivityMonitor,
+  ConsoleLogger,
+  StorageRetention,
+  SyncService,
+  type TriggerButton,
+} from '@football-clip-recorder/core';
 import { resolveFfmpegPath, UsbCameraLinux, UsbCameraWindows } from '@football-clip-recorder/camera';
 import { CompositeTriggerButton, GpioButton, VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
@@ -77,6 +84,48 @@ const application = new ClipRecorderApplication({
   logger,
 });
 
+const syncService = config.sync.enabled
+  ? new SyncService({
+      application,
+      monitor: new ConnectivityMonitor({
+        url: config.sync.connectivityUrl,
+        intervalMs: config.sync.checkIntervalSeconds * 1000,
+      }),
+      clipsRoot: config.paths.clipsRoot,
+      stateFilePath: path.join(config.paths.runtimeRoot, 'sync-state.json'),
+      retryIntervalMs: config.sync.retryIntervalSeconds * 1000,
+      logger,
+    })
+  : undefined;
+
+const retention = new StorageRetention({
+  directory: config.paths.clipsRoot,
+  maxPercent: config.storage.maxDiskPercent,
+  isUploaded: (filePath) =>
+    application.getSnapshot().clips.some((clip) => clip.filePath === filePath && clip.storageStatus === 'uploaded'),
+  logger,
+});
+let retentionRunning = false;
+async function runRetention(): Promise<void> {
+  if (retentionRunning) {
+    return;
+  }
+  retentionRunning = true;
+  try {
+    const result = await retention.enforce();
+    if (result.removed.length > 0) {
+      application.forgetClipFiles(result.removed);
+    }
+  } catch (error) {
+    logger.error('RETENTION_FAILED', { error: error instanceof Error ? error.message : String(error) });
+  } finally {
+    retentionRunning = false;
+  }
+}
+application.onClipsChange(() => void runRetention());
+const retentionTimer = setInterval(() => void runRetention(), config.storage.retentionIntervalSeconds * 1000);
+retentionTimer.unref();
+
 const server = createHttpServer({
   application,
   pressTrigger: () => virtualButton.press(),
@@ -137,6 +186,7 @@ async function shutdown(signal: string): Promise<void> {
     clearTimeout(retryTimer);
   }
 
+  syncService?.stop();
   server.close();
   server.closeAllConnections();
   await application.stop().catch(() => undefined);
@@ -150,4 +200,7 @@ const port = config.app.port ?? 3000;
 server.listen(port, config.app.host, () => {
   logger.info('SERVER_LISTENING', { host: config.app.host, port });
   void startCapture();
+  void syncService?.start().catch((error: unknown) =>
+    logger.error('SYNC_START_FAILED', { error: error instanceof Error ? error.message : String(error) }),
+  );
 });

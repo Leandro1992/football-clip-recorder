@@ -15,6 +15,8 @@ export class UploadQueue {
   private readonly stateListeners = new Set<StateListener>();
   private readonly pendingClips: ClipMetadata[] = [];
   private processing = false;
+  private paused = false;
+  private currentClipId?: string;
   private lastError?: string;
 
   constructor(
@@ -23,6 +25,9 @@ export class UploadQueue {
   ) {}
 
   enqueue(clip: ClipMetadata): void {
+    if (this.currentClipId === clip.id || this.pendingClips.some((queued) => queued.id === clip.id)) {
+      return;
+    }
     this.pendingClips.push({ ...clip, storageStatus: 'pending' });
     this.emitState();
     void this.pump();
@@ -30,6 +35,21 @@ export class UploadQueue {
 
   retry(clip: ClipMetadata): void {
     this.enqueue({ ...clip, lastError: undefined });
+  }
+
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) {
+      return;
+    }
+    this.paused = paused;
+    this.emitState();
+    if (!paused) {
+      void this.pump();
+    }
+  }
+
+  isQueued(clipId: string): boolean {
+    return this.currentClipId === clipId || this.pendingClips.some((queued) => queued.id === clipId);
   }
 
   onClipUpdated(callback: ClipListener): void {
@@ -50,14 +70,14 @@ export class UploadQueue {
   }
 
   private async pump(): Promise<void> {
-    if (this.processing) {
+    if (this.processing || this.paused) {
       return;
     }
 
     this.processing = true;
     this.emitState();
 
-    while (this.pendingClips.length > 0) {
+    while (this.pendingClips.length > 0 && !this.paused) {
       const nextClip = this.pendingClips.shift();
       if (!nextClip) {
         break;
@@ -67,6 +87,7 @@ export class UploadQueue {
         ...nextClip,
         storageStatus: 'uploading',
       };
+      this.currentClipId = uploadingClip.id;
       this.emitClip(uploadingClip);
       this.logger.info('UPLOAD_STARTED', { clipId: uploadingClip.id, filePath: uploadingClip.filePath });
 
@@ -96,6 +117,7 @@ export class UploadQueue {
         this.logger.error('UPLOAD_FAILED', { clipId: pendingClip.id, error: message });
       }
 
+      this.currentClipId = undefined;
       this.emitState();
     }
 

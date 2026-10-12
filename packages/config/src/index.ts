@@ -38,6 +38,16 @@ export interface AppConfig {
     provider: StorageProvider;
     awsRegion?: string;
     awsS3Bucket?: string;
+    s3Endpoint?: string;
+    s3Prefix?: string;
+    maxDiskPercent: number;
+    retentionIntervalSeconds: number;
+  };
+  sync: {
+    enabled: boolean;
+    connectivityUrl: string;
+    checkIntervalSeconds: number;
+    retryIntervalSeconds: number;
   };
   paths: {
     projectRoot: string;
@@ -125,6 +135,11 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
     throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}`);
   }
 
+  const maxDiskPercent = Number(env.STORAGE_MAX_PERCENT_FREE || 50);
+  if (!Number.isFinite(maxDiskPercent) || maxDiskPercent <= 0 || maxDiskPercent > 95) {
+    throw new Error('STORAGE_MAX_PERCENT_FREE must be between 1 and 95');
+  }
+
   return {
     app: {
       host: env.HOST || '0.0.0.0',
@@ -170,6 +185,28 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       provider,
       awsRegion: env.AWS_REGION || undefined,
       awsS3Bucket: env.AWS_S3_BUCKET || undefined,
+      s3Endpoint: env.S3_ENDPOINT || undefined,
+      s3Prefix: env.S3_PREFIX || undefined,
+      maxDiskPercent: maxDiskPercent,
+      retentionIntervalSeconds: parseRequiredPositiveInteger(
+        env.STORAGE_RETENTION_INTERVAL_SECONDS,
+        60,
+        'STORAGE_RETENTION_INTERVAL_SECONDS',
+      ),
+    },
+    sync: {
+      enabled: parseOptionalBoolean(env.SYNC_ENABLED, true),
+      connectivityUrl: env.SYNC_CONNECTIVITY_URL || 'https://www.gstatic.com/generate_204',
+      checkIntervalSeconds: parseRequiredPositiveInteger(
+        env.SYNC_CHECK_INTERVAL_SECONDS,
+        30,
+        'SYNC_CHECK_INTERVAL_SECONDS',
+      ),
+      retryIntervalSeconds: parseRequiredPositiveInteger(
+        env.SYNC_RETRY_INTERVAL_SECONDS,
+        120,
+        'SYNC_RETRY_INTERVAL_SECONDS',
+      ),
     },
     paths: {
       projectRoot,
