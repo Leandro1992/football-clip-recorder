@@ -26,6 +26,7 @@ export class S3Storage implements ClipStorage {
   }
 
   async upload(filePath: string, metadata: ClipMetadata): Promise<UploadResult> {
+    const { size } = await fs.promises.stat(filePath);
     const fileStream = fs.createReadStream(filePath);
     const key = this.options.prefix
       ? path.posix.join(this.options.prefix, path.basename(filePath))
@@ -36,6 +37,7 @@ export class S3Storage implements ClipStorage {
         Bucket: this.options.bucket,
         Key: key,
         Body: fileStream,
+        ContentLength: size,
         ContentType: 'video/mp4',
         Metadata: {
           clipId: metadata.id,
