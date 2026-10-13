@@ -31,6 +31,8 @@ export class ClipRecorderApplication {
   private readonly uploadQueue: UploadQueue;
   private readonly clips = new Map<string, ClipMetadata>();
   private started = false;
+  private recordingEnabled = true;
+  private recordingDisabledMessage = 'Gravação desativada.';
 
   private status: ApplicationStatus = {
     cameraStatus: 'offline',
@@ -103,6 +105,18 @@ export class ClipRecorderApplication {
 
     this.uploadQueue.retry(clip);
     this.status.lastMessage = 'Upload reenfileirado.';
+    this.emitStatus();
+  }
+
+  setRecordingEnabled(enabled: boolean, disabledMessage?: string): void {
+    this.recordingEnabled = enabled;
+    if (disabledMessage) {
+      this.recordingDisabledMessage = disabledMessage;
+    }
+    if (!enabled) {
+      this.status.lastMessage = this.recordingDisabledMessage;
+    }
+    this.status.canTrigger = this.computeCanTrigger();
     this.emitStatus();
   }
 
@@ -239,6 +253,13 @@ export class ClipRecorderApplication {
   }
 
   private async captureClip(): Promise<void> {
+    if (!this.recordingEnabled) {
+      this.status.lastMessage = this.recordingDisabledMessage;
+      this.status.canTrigger = false;
+      this.emitStatus();
+      return;
+    }
+
     if (!this.computeCanTrigger()) {
       return;
     }
@@ -333,7 +354,7 @@ export class ClipRecorderApplication {
   }
 
   private computeCanTrigger(): boolean {
-    return this.status.cameraStatus === 'online' && this.status.processingStatus === 'idle';
+    return this.recordingEnabled && this.status.cameraStatus === 'online' && this.status.processingStatus === 'idle';
   }
 
   private upsertClip(clip: ClipMetadata): void {

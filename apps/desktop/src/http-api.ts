@@ -65,7 +65,7 @@ export function createHttpApi(): DesktopApi {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       }).then((response) => response.config),
-    discoverCameras: () => request<{ cameras: { id: string; name: string; deviceId: string }[] }>('/api/equipment/discovery'),
+    discoverCameras: () => request<{ cameras: { name: string; deviceId: string }[] }>('/api/equipment/discovery'),
     validateGpioPin: (pin: number, chip?: string) =>
       request<{ ok: boolean; message: string }>('/api/equipment/validate-gpio', {
         method: 'POST',

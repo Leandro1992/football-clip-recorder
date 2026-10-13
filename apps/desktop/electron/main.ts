@@ -13,6 +13,7 @@ import { listCameraDevices, resolveFfmpegPath, UsbCameraWindows } from '@footbal
 import { VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
+import type { EquipmentConfig } from './ipc-types';
 
 const logger = new ConsoleLogger();
 const projectRoot = path.resolve(__dirname, '../../../..');
@@ -62,8 +63,25 @@ const clipRecorderApplication = new ClipRecorderApplication({
   clipStorage,
   logger,
 });
+let equipmentConfigCache: EquipmentConfig = { cameras: [], buttons: [], bindings: [] };
 
 let mainWindow: BrowserWindow | undefined;
+
+function normalizeEquipmentConfig(input: unknown): EquipmentConfig {
+  if (!input || typeof input !== 'object') {
+    return { cameras: [], buttons: [], bindings: [] };
+  }
+  const candidate = input as Partial<EquipmentConfig>;
+  return {
+    cameras: Array.isArray(candidate.cameras)
+      ? candidate.cameras.map((camera) => ({ ...camera, isActive: camera.isActive !== false }))
+      : [],
+    buttons: Array.isArray(candidate.buttons)
+      ? candidate.buttons.map((button) => ({ ...button, isActive: button.isActive !== false }))
+      : [],
+    bindings: Array.isArray(candidate.bindings) ? candidate.bindings : [],
+  };
+}
 
 function sendToMainWindow(channel: 'app:status' | 'app:clips', payload: ApplicationStatus | ClipMetadata[]): void {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
@@ -217,15 +235,22 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('app:get-equipment-config', async () => {
     try {
-      return JSON.parse(await fs.readFile(equipmentConfigPath, 'utf8'));
+      equipmentConfigCache = normalizeEquipmentConfig(JSON.parse(await fs.readFile(equipmentConfigPath, 'utf8')));
+      return equipmentConfigCache;
     } catch {
       return { cameras: [], buttons: [], bindings: [] };
     }
   });
 
-  ipcMain.handle('app:save-equipment-config', async (_event, equipmentConfig: unknown) => {
-    await fs.writeFile(equipmentConfigPath, JSON.stringify(equipmentConfig, null, 2));
-    return equipmentConfig;
+  ipcMain.handle('app:save-equipment-config', async (_event, equipmentConfig: EquipmentConfig) => {
+    const normalized = normalizeEquipmentConfig(equipmentConfig);
+    await fs.writeFile(equipmentConfigPath, JSON.stringify(normalized, null, 2));
+    equipmentConfigCache = normalized;
+    clipRecorderApplication.setRecordingEnabled(
+      normalized.cameras.some((camera) => camera.isActive),
+      'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
+    );
+    return normalized;
   });
 
   ipcMain.handle('app:discover-cameras', async () => {
@@ -249,6 +274,15 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(async () => {
+  try {
+    equipmentConfigCache = normalizeEquipmentConfig(JSON.parse(await fs.readFile(equipmentConfigPath, 'utf8')));
+  } catch {
+    equipmentConfigCache = { cameras: [{ id: 'default-camera', name: 'Camera', deviceId: 'default', isActive: true }], buttons: [], bindings: [] };
+  }
+  clipRecorderApplication.setRecordingEnabled(
+    equipmentConfigCache.cameras.some((camera) => camera.isActive),
+    'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
+  );
   registerIpcHandlers();
   await createWindow();
   void clipRecorderApplication.start().catch((error: unknown) => {

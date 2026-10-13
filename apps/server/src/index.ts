@@ -34,6 +34,7 @@ const seededEquipmentConfig: EquipmentConfig = {
       id: config.equipment.mainCameraId,
       name: config.equipment.mainCameraName,
       deviceId: config.camera.deviceName || '/dev/video0',
+      isActive: true,
     },
   ],
   buttons: [
@@ -42,6 +43,7 @@ const seededEquipmentConfig: EquipmentConfig = {
           id: config.equipment.mainButtonId,
           name: config.equipment.mainButtonName,
           type: 'gpio',
+          isActive: true,
           gpioPin: config.button.gpioPin,
           gpioChip: config.button.gpioChip,
           activeLow: config.button.activeLow,
@@ -50,6 +52,7 @@ const seededEquipmentConfig: EquipmentConfig = {
           id: config.equipment.mainButtonId,
           name: config.equipment.mainButtonName,
           type: 'virtual',
+          isActive: true,
         },
   ],
   bindings: [
@@ -95,7 +98,10 @@ const camera = new CameraClass({
 
 const virtualButton = new VirtualButton();
 const triggerSources: TriggerButton[] = [virtualButton];
-if (config.button.provider === 'gpio') {
+if (
+  config.button.provider === 'gpio' &&
+  equipmentConfig.buttons.some((button) => button.id === config.equipment.mainButtonId && button.isActive)
+) {
   triggerSources.push(
     new GpioButton({
       pin: config.button.gpioPin as number,
@@ -107,7 +113,7 @@ if (config.button.provider === 'gpio') {
   );
 }
 for (const button of equipmentConfig.buttons) {
-  if (button.type !== 'gpio' || typeof button.gpioPin !== 'number') {
+  if (button.type !== 'gpio' || typeof button.gpioPin !== 'number' || !button.isActive) {
     continue;
   }
   const exists = triggerSources.some((source) => {
@@ -148,6 +154,10 @@ const application = new ClipRecorderApplication({
   clipStorage: createClipStorage(config, logger),
   logger,
 });
+application.setRecordingEnabled(
+  equipmentConfig.cameras.some((camera) => camera.isActive),
+  'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
+);
 
 const syncService = config.sync.enabled
   ? new SyncService({
@@ -207,6 +217,12 @@ const server = createHttpServer({
   },
   equipmentStore,
   detectCameras: () => listCameraDevices(config.app.ffmpegPath),
+  onEquipmentConfigChanged: (nextConfig) => {
+    application.setRecordingEnabled(
+      nextConfig.cameras.some((camera) => camera.isActive),
+      'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
+    );
+  },
   logger,
 });
 

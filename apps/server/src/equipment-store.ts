@@ -8,12 +8,14 @@ export interface EquipmentCamera {
   id: string;
   name: string;
   deviceId: string;
+  isActive: boolean;
 }
 
 export interface EquipmentButton {
   id: string;
   name: string;
   type: EquipmentButtonType;
+  isActive: boolean;
   gpioPin?: number;
   gpioChip?: string;
   activeLow?: boolean;
@@ -75,8 +77,18 @@ function normalizeConfig(input: unknown): EquipmentConfig {
   }
   const candidate = input as Partial<EquipmentConfig>;
   return {
-    cameras: Array.isArray(candidate.cameras) ? candidate.cameras : [],
-    buttons: Array.isArray(candidate.buttons) ? candidate.buttons : [],
+    cameras: Array.isArray(candidate.cameras)
+      ? candidate.cameras.map((camera) => ({
+          ...camera,
+          isActive: camera.isActive !== false,
+        }))
+      : [],
+    buttons: Array.isArray(candidate.buttons)
+      ? candidate.buttons.map((button) => ({
+          ...button,
+          isActive: button.isActive !== false,
+        }))
+      : [],
     bindings: Array.isArray(candidate.bindings) ? candidate.bindings : [],
   };
 }

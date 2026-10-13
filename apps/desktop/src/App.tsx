@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
 import type {
   AuthSession,
+  DiscoveredCamera,
   EquipmentButton,
   EquipmentCamera,
   EquipmentConfig,
@@ -90,7 +91,7 @@ export function App() {
   const [recordings, setRecordings] = useState<RecordingFile[]>([]);
   const [publicConfig, setPublicConfig] = useState<PublicConfig>(defaultConfig);
   const [equipmentConfig, setEquipmentConfig] = useState<EquipmentConfig>(defaultEquipmentConfig);
-  const [discoveredCameras, setDiscoveredCameras] = useState<EquipmentCamera[]>([]);
+  const [discoveredCameras, setDiscoveredCameras] = useState<DiscoveredCamera[]>([]);
   const [equipmentMessage, setEquipmentMessage] = useState<string | undefined>(undefined);
 
   const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment'>('live');
@@ -307,6 +308,7 @@ export function App() {
       id: makeId('camera'),
       name: cameraNameInput.trim(),
       deviceId: cameraDeviceInput.trim(),
+      isActive: true,
     };
     setEquipmentConfig((current) => ({
       ...current,
@@ -317,7 +319,7 @@ export function App() {
     setEquipmentMessage('Câmera adicionada à configuração.');
   }
 
-  function addDetectedCamera(camera: EquipmentCamera): void {
+  function addDetectedCamera(camera: DiscoveredCamera): void {
     setEquipmentConfig((current) => {
       const alreadyExists = current.cameras.some((item) => item.deviceId === camera.deviceId);
       if (alreadyExists) {
@@ -325,7 +327,7 @@ export function App() {
       }
       return {
         ...current,
-        cameras: [...current.cameras, { ...camera, id: makeId('camera') }],
+        cameras: [...current.cameras, { ...camera, id: makeId('camera'), isActive: true }],
       };
     });
     setEquipmentMessage('Câmera detectada adicionada.');
@@ -340,6 +342,7 @@ export function App() {
       id: makeId('button'),
       name: buttonNameInput.trim(),
       type: buttonTypeInput,
+      isActive: true,
       gpioChip: buttonTypeInput === 'gpio' ? buttonChipInput.trim() || 'gpiochip0' : undefined,
       gpioPin: buttonTypeInput === 'gpio' ? Number(buttonPinInput) : undefined,
       activeLow: buttonTypeInput === 'gpio' ? true : undefined,
@@ -374,6 +377,41 @@ export function App() {
         return { ...binding, cameraIds: [...next] };
       }),
     }));
+  }
+
+  function updateCamera(cameraId: string, updater: (camera: EquipmentCamera) => EquipmentCamera): void {
+    setEquipmentConfig((current) => ({
+      ...current,
+      cameras: current.cameras.map((camera) => (camera.id === cameraId ? updater(camera) : camera)),
+    }));
+  }
+
+  function removeCamera(cameraId: string): void {
+    setEquipmentConfig((current) => ({
+      ...current,
+      cameras: current.cameras.filter((camera) => camera.id !== cameraId),
+      bindings: current.bindings.map((binding) => ({
+        ...binding,
+        cameraIds: binding.cameraIds.filter((id) => id !== cameraId),
+      })),
+    }));
+    setEquipmentMessage('Câmera removida.');
+  }
+
+  function updateButton(buttonId: string, updater: (button: EquipmentButton) => EquipmentButton): void {
+    setEquipmentConfig((current) => ({
+      ...current,
+      buttons: current.buttons.map((button) => (button.id === buttonId ? updater(button) : button)),
+    }));
+  }
+
+  function removeButton(buttonId: string): void {
+    setEquipmentConfig((current) => ({
+      ...current,
+      buttons: current.buttons.filter((button) => button.id !== buttonId),
+      bindings: current.bindings.filter((binding) => binding.buttonId !== buttonId),
+    }));
+    setEquipmentMessage('Botão removido.');
   }
 
   async function validateGpioPin(pin: number, chip?: string): Promise<void> {
@@ -677,6 +715,13 @@ export function App() {
 
       {activeTab === 'equipment' ? (
         <div className="row g-3">
+          {equipmentConfig.cameras.every((camera) => !camera.isActive) ? (
+            <div className="col-12">
+              <div className="alert alert-warning mb-0">
+                Nenhuma câmera ativa. A gravação fica bloqueada até você ativar ao menos uma câmera.
+              </div>
+            </div>
+          ) : null}
           <div className="col-12 col-xl-6">
             <div className="card mb-3">
               <div className="card-header"><strong>Cadastro de câmeras</strong></div>
@@ -747,9 +792,59 @@ export function App() {
                     <li className="list-group-item text-secondary">Nenhuma câmera cadastrada.</li>
                   ) : (
                     equipmentConfig.cameras.map((camera) => (
-                      <li key={camera.id} className="list-group-item d-flex justify-content-between">
-                        <span>{camera.name}</span>
-                        <span className="text-secondary">{camera.deviceId}</span>
+                      <li key={camera.id} className="list-group-item">
+                        <div className="row g-2 align-items-center">
+                          <div className="col-md-4">
+                            <input
+                              className="form-control form-control-sm"
+                              value={camera.name}
+                              onChange={(event) =>
+                                updateCamera(camera.id, (current) => ({
+                                  ...current,
+                                  name: event.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <input
+                              className="form-control form-control-sm"
+                              value={camera.deviceId}
+                              onChange={(event) =>
+                                updateCamera(camera.id, (current) => ({
+                                  ...current,
+                                  deviceId: event.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="col-md-2">
+                            <div className="form-check form-switch m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                checked={camera.isActive}
+                                onChange={(event) =>
+                                  updateCamera(camera.id, (current) => ({
+                                    ...current,
+                                    isActive: event.target.checked,
+                                  }))
+                                }
+                              />
+                              <label className="form-check-label small">
+                                {camera.isActive ? 'Ativa' : 'Inativa'}
+                              </label>
+                            </div>
+                          </div>
+                          <div className="col-md-2 d-grid">
+                            <button
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => removeCamera(camera.id)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </div>
                       </li>
                     ))
                   )}
@@ -822,13 +917,52 @@ export function App() {
                     <li className="list-group-item text-secondary">Nenhum botão cadastrado.</li>
                   ) : (
                     equipmentConfig.buttons.map((button) => (
-                      <li key={button.id} className="list-group-item d-flex justify-content-between">
-                        <span>{button.name}</span>
-                        <span className="text-secondary">
-                          {button.type === 'gpio'
-                            ? `GPIO ${button.gpioPin ?? '-'} (${button.gpioChip ?? 'gpiochip0'})`
-                            : 'Virtual'}
-                        </span>
+                      <li key={button.id} className="list-group-item">
+                        <div className="row g-2 align-items-center">
+                          <div className="col-md-4">
+                            <input
+                              className="form-control form-control-sm"
+                              value={button.name}
+                              onChange={(event) =>
+                                updateButton(button.id, (current) => ({
+                                  ...current,
+                                  name: event.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="col-md-3 text-secondary small">
+                            {button.type === 'gpio'
+                              ? `GPIO ${button.gpioPin ?? '-'} (${button.gpioChip ?? 'gpiochip0'})`
+                              : 'Virtual'}
+                          </div>
+                          <div className="col-md-3">
+                            <div className="form-check form-switch m-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                checked={button.isActive}
+                                onChange={(event) =>
+                                  updateButton(button.id, (current) => ({
+                                    ...current,
+                                    isActive: event.target.checked,
+                                  }))
+                                }
+                              />
+                              <label className="form-check-label small">
+                                {button.isActive ? 'Ativo' : 'Inativo'}
+                              </label>
+                            </div>
+                          </div>
+                          <div className="col-md-2 d-grid">
+                            <button
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => removeButton(button.id)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </div>
                       </li>
                     ))
                   )}
@@ -856,10 +990,12 @@ export function App() {
                             : 'Virtual'}
                         </div>
                         <div className="d-flex flex-column gap-1">
-                          {equipmentConfig.cameras.length === 0 ? (
+                          {equipmentConfig.cameras.filter((camera) => camera.isActive).length === 0 ? (
                             <span className="text-secondary">Nenhuma câmera para vincular.</span>
                           ) : (
-                            equipmentConfig.cameras.map((camera) => (
+                            equipmentConfig.cameras
+                              .filter((camera) => camera.isActive)
+                              .map((camera) => (
                               <label key={camera.id} className="form-check">
                                 <input
                                   className="form-check-input"

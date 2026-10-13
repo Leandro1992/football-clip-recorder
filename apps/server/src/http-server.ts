@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import type { CameraDeviceInfo } from '@football-clip-recorder/camera';
 import type { ApplicationStatus, ClipMetadata, ClipRecorderApplication, Logger } from '@football-clip-recorder/core';
-import type { EquipmentConfig, EquipmentStore } from './equipment-store';
+import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
 export interface HttpServerOptions {
   application: ClipRecorderApplication;
@@ -25,6 +25,7 @@ export interface HttpServerOptions {
   };
   equipmentStore: EquipmentStore;
   detectCameras: () => Promise<CameraDeviceInfo[]>;
+  onEquipmentConfigChanged?: (config: EquipmentConfig) => void;
   logger: Logger;
 }
 
@@ -122,11 +123,21 @@ function sanitizeEquipmentConfig(input: unknown): EquipmentConfig {
     throw new Error('Configuração inválida.');
   }
   const candidate = input as Partial<EquipmentConfig>;
-  const cameras = Array.isArray(candidate.cameras)
-    ? candidate.cameras.filter((camera) => camera && typeof camera.id === 'string')
+  const cameras: EquipmentCamera[] = Array.isArray(candidate.cameras)
+    ? candidate.cameras
+        .filter((camera) => camera && typeof camera.id === 'string')
+        .map((camera) => ({
+          ...camera,
+          isActive: camera.isActive !== false,
+        }))
     : [];
-  const buttons = Array.isArray(candidate.buttons)
-    ? candidate.buttons.filter((button) => button && typeof button.id === 'string')
+  const buttons: EquipmentButton[] = Array.isArray(candidate.buttons)
+    ? candidate.buttons
+        .filter((button) => button && typeof button.id === 'string')
+        .map((button) => ({
+          ...button,
+          isActive: button.isActive !== false,
+        }))
     : [];
   const bindings = Array.isArray(candidate.bindings)
     ? candidate.bindings.filter((binding) => binding && typeof binding.buttonId === 'string')
@@ -434,6 +445,7 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
       const body = await readJsonBody<EquipmentConfig>(request);
       const nextConfig = sanitizeEquipmentConfig(body);
       await options.equipmentStore.save(nextConfig);
+      options.onEquipmentConfigChanged?.(nextConfig);
       sendJson(response, 200, { ok: true, config: nextConfig });
       return;
     }

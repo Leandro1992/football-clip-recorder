@@ -29,12 +29,14 @@ export interface EquipmentCamera {
   id: string;
   name: string;
   deviceId: string;
+  isActive: boolean;
 }
 
 export interface EquipmentButton {
   id: string;
   name: string;
   type: 'virtual' | 'gpio';
+  isActive: boolean;
   gpioPin?: number;
   gpioChip?: string;
   activeLow?: boolean;
@@ -49,6 +51,11 @@ export interface EquipmentConfig {
   cameras: EquipmentCamera[];
   buttons: EquipmentButton[];
   bindings: EquipmentBinding[];
+}
+
+export interface DiscoveredCamera {
+  name: string;
+  deviceId: string;
 }
 
 export interface GpioValidationResult {
@@ -70,7 +77,7 @@ export interface DesktopApi {
   openRecording(filePath: string): Promise<void>;
   getEquipmentConfig(): Promise<EquipmentConfig>;
   saveEquipmentConfig(config: EquipmentConfig): Promise<EquipmentConfig>;
-  discoverCameras(): Promise<{ cameras: EquipmentCamera[] }>;
+  discoverCameras(): Promise<{ cameras: DiscoveredCamera[] }>;
   validateGpioPin(pin: number, chip?: string): Promise<GpioValidationResult>;
   onStatusChange(callback: (status: ApplicationStatus) => void): () => void;
   onClipsChange(callback: (clips: ClipMetadata[]) => void): () => void;
