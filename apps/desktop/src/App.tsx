@@ -459,7 +459,7 @@ export function App() {
         <div className="d-flex gap-2">
           <span className="badge text-bg-secondary align-self-center">{session.username}</span>
           <button
-            className="btn btn-outline-light btn-sm"
+            className="btn btn-outline-secondary btn-sm"
             onClick={() => {
               void window.desktopApi.logout().then(() => setSession({ authenticated: false }));
             }}
@@ -565,7 +565,7 @@ export function App() {
           <div className="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <strong>Gestão de vídeos</strong>
             <div className="d-flex flex-wrap gap-2">
-              <button className="btn btn-outline-light btn-sm" onClick={() => void refreshRecordings()}>
+              <button className="btn btn-outline-secondary btn-sm" onClick={() => void refreshRecordings()}>
                 Atualizar
               </button>
               <select
@@ -647,7 +647,7 @@ export function App() {
                         <td>
                           <div className="btn-group btn-group-sm">
                             <button
-                              className="btn btn-outline-light"
+                              className="btn btn-outline-secondary"
                               onClick={() => {
                                 void window.desktopApi.openRecording(recording.path);
                               }}
@@ -678,82 +678,89 @@ export function App() {
       {activeTab === 'equipment' ? (
         <div className="row g-3">
           <div className="col-12 col-xl-6">
-            <div className="card">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <strong>Câmeras</strong>
-                <button className="btn btn-outline-light btn-sm" onClick={() => void refreshDiscovery()}>
-                  Autodetectar
-                </button>
-              </div>
+            <div className="card mb-3">
+              <div className="card-header"><strong>Cadastro de câmeras</strong></div>
               <div className="card-body">
                 <div className="mb-3">
-                  <div className="small text-secondary mb-1">Detectadas</div>
-                  <div className="d-flex flex-column gap-2">
-                    {discoveredCameras.length === 0 ? (
-                      <span className="text-secondary">Nenhuma câmera detectada agora.</span>
-                    ) : (
-                      discoveredCameras.map((camera) => (
-                        <div key={camera.deviceId} className="d-flex justify-content-between align-items-center border rounded p-2">
-                          <span>{camera.name} <span className="text-secondary">({camera.deviceId})</span></span>
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => addDetectedCamera(camera)}
-                          >
-                            Adicionar
-                          </button>
-                        </div>
-                      ))
-                    )}
+                  <div className="small text-secondary mb-2">Detecção automática</div>
+                  <div className="d-flex flex-wrap gap-2">
+                    <button className="btn btn-outline-secondary btn-sm" onClick={() => void refreshDiscovery()}>
+                      Autodetectar câmeras
+                    </button>
                   </div>
                 </div>
-
-                <div className="border-top pt-3">
-                  <div className="small text-secondary mb-2">Cadastro manual</div>
-                  <div className="row g-2">
-                    <div className="col-md-5">
-                      <input
-                        className="form-control"
-                        placeholder="Nome da câmera"
-                        value={cameraNameInput}
-                        onChange={(event) => setCameraNameInput(event.target.value)}
-                      />
-                    </div>
-                    <div className="col-md-5">
-                      <input
-                        className="form-control"
-                        placeholder="/dev/video0"
-                        value={cameraDeviceInput}
-                        onChange={(event) => setCameraDeviceInput(event.target.value)}
-                      />
-                    </div>
-                    <div className="col-md-2 d-grid">
-                      <button className="btn btn-primary" onClick={addManualCamera}>Adicionar</button>
-                    </div>
+                <div className="small text-secondary mb-2">Cadastro manual</div>
+                <div className="row g-2">
+                  <div className="col-md-5">
+                    <input
+                      className="form-control"
+                      placeholder="Nome da câmera"
+                      value={cameraNameInput}
+                      onChange={(event) => setCameraNameInput(event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-5">
+                    <input
+                      className="form-control"
+                      placeholder="/dev/video0"
+                      value={cameraDeviceInput}
+                      onChange={(event) => setCameraDeviceInput(event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2 d-grid">
+                    <button className="btn btn-primary" onClick={addManualCamera}>Adicionar</button>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <div className="mt-3">
-                  <div className="small text-secondary mb-2">Câmeras configuradas</div>
-                  <ul className="list-group">
-                    {equipmentConfig.cameras.length === 0 ? (
-                      <li className="list-group-item text-secondary">Nenhuma câmera cadastrada.</li>
-                    ) : (
-                      equipmentConfig.cameras.map((camera) => (
-                        <li key={camera.id} className="list-group-item d-flex justify-content-between">
-                          <span>{camera.name}</span>
-                          <span className="text-secondary">{camera.deviceId}</span>
-                        </li>
-                      ))
-                    )}
-                  </ul>
+            <div className="card mb-3">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <strong>Câmeras detectadas</strong>
+              </div>
+              <div className="card-body">
+                <div className="d-flex flex-column gap-2">
+                  {discoveredCameras.length === 0 ? (
+                    <span className="text-secondary">Nenhuma câmera detectada agora.</span>
+                  ) : (
+                    discoveredCameras.map((camera) => (
+                      <div key={camera.deviceId} className="d-flex justify-content-between align-items-center border rounded p-2">
+                        <span>{camera.name} <span className="text-secondary">({camera.deviceId})</span></span>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => addDetectedCamera(camera)}
+                        >
+                          Adicionar
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header"><strong>Câmeras cadastradas</strong></div>
+              <div className="card-body p-0">
+                <ul className="list-group list-group-flush">
+                  {equipmentConfig.cameras.length === 0 ? (
+                    <li className="list-group-item text-secondary">Nenhuma câmera cadastrada.</li>
+                  ) : (
+                    equipmentConfig.cameras.map((camera) => (
+                      <li key={camera.id} className="list-group-item d-flex justify-content-between">
+                        <span>{camera.name}</span>
+                        <span className="text-secondary">{camera.deviceId}</span>
+                      </li>
+                    ))
+                  )}
+                </ul>
               </div>
             </div>
           </div>
 
           <div className="col-12 col-xl-6">
             <div className="card mb-3">
-              <div className="card-header"><strong>Botões</strong></div>
+              <div className="card-header"><strong>Cadastro de botões</strong></div>
               <div className="card-body">
                 <div className="row g-2">
                   <div className="col-md-4">
@@ -797,13 +804,35 @@ export function App() {
                   <button className="btn btn-primary btn-sm" onClick={addButton}>Adicionar botão</button>
                   {buttonTypeInput === 'gpio' ? (
                     <button
-                      className="btn btn-outline-light btn-sm"
+                      className="btn btn-outline-secondary btn-sm"
                       onClick={() => void validateGpioPin(Number(buttonPinInput), buttonChipInput)}
                     >
                       Validar conectividade GPIO
                     </button>
                   ) : null}
                 </div>
+              </div>
+            </div>
+
+            <div className="card mb-3">
+              <div className="card-header"><strong>Botões cadastrados</strong></div>
+              <div className="card-body p-0">
+                <ul className="list-group list-group-flush">
+                  {equipmentConfig.buttons.length === 0 ? (
+                    <li className="list-group-item text-secondary">Nenhum botão cadastrado.</li>
+                  ) : (
+                    equipmentConfig.buttons.map((button) => (
+                      <li key={button.id} className="list-group-item d-flex justify-content-between">
+                        <span>{button.name}</span>
+                        <span className="text-secondary">
+                          {button.type === 'gpio'
+                            ? `GPIO ${button.gpioPin ?? '-'} (${button.gpioChip ?? 'gpiochip0'})`
+                            : 'Virtual'}
+                        </span>
+                      </li>
+                    ))
+                  )}
+                </ul>
               </div>
             </div>
 
