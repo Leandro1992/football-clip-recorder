@@ -19,7 +19,7 @@ import { CompositeTriggerButton, GpioButton, VirtualButton } from '@football-cli
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
 import { createHttpServer } from './http-server';
-import { EquipmentStore } from './equipment-store';
+import { EquipmentStore, type EquipmentConfig } from './equipment-store';
 
 const CAMERA_RETRY_DELAY_MS = 5000;
 
@@ -27,7 +27,40 @@ const logger = new ConsoleLogger();
 const projectRoot = path.resolve(__dirname, '../../..');
 const config = loadConfig({ projectRoot });
 ensureRuntimeDirectories(config);
-const equipmentStore = new EquipmentStore(config.paths.runtimeRoot);
+
+const seededEquipmentConfig: EquipmentConfig = {
+  cameras: [
+    {
+      id: config.equipment.mainCameraId,
+      name: config.equipment.mainCameraName,
+      deviceId: config.camera.deviceName || '/dev/video0',
+    },
+  ],
+  buttons: [
+    config.button.provider === 'gpio' && typeof config.button.gpioPin === 'number'
+      ? {
+          id: config.equipment.mainButtonId,
+          name: config.equipment.mainButtonName,
+          type: 'gpio',
+          gpioPin: config.button.gpioPin,
+          gpioChip: config.button.gpioChip,
+          activeLow: config.button.activeLow,
+        }
+      : {
+          id: config.equipment.mainButtonId,
+          name: config.equipment.mainButtonName,
+          type: 'virtual',
+        },
+  ],
+  bindings: [
+    {
+      buttonId: config.equipment.mainButtonId,
+      cameraIds: [config.equipment.mainCameraId],
+    },
+  ],
+};
+
+const equipmentStore = new EquipmentStore(config.paths.runtimeRoot, seededEquipmentConfig);
 const equipmentConfig = equipmentStore.loadSync();
 
 // Segments and previews are only a rolling buffer; leftovers from earlier runs would fill the SD card.

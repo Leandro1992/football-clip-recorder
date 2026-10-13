@@ -17,6 +17,8 @@ describe('loadConfig', () => {
     expect(config.auth.password).toBe('admin');
     expect(config.storage.maxDiskBytes).toBe(10 * 1024 * 1024 * 1024);
     expect(config.storage.maxCloudBytes).toBe(10 * 1024 * 1024 * 1024);
+    expect(config.equipment.mainCameraName).toBe('Camera principal');
+    expect(config.equipment.mainButtonName).toBe('Botao principal');
     expect(config.paths.previewRoot).toContain('runtime');
   });
 

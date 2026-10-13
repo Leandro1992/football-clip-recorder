@@ -47,10 +47,15 @@ Copie `.env.example` para `.env` e ajuste. Principais variáveis:
 | `BUTTON_PROVIDER` | `virtual` (só UI) ou `gpio` | `virtual` |
 | `GPIO_CHIP` / `GPIO_BUTTON_PIN` | Chip e linha do botão (obrigatório se `gpio`) | `gpiochip0` / |
 | `GPIO_ACTIVE_LOW` / `GPIO_DEBOUNCE_MS` | Polaridade e debounce | `true` / `50` |
+| `EQUIPMENT_MAIN_CAMERA_*` | ID/nome da câmera principal pré-cadastrada na UI | `env-camera-main` / `Camera principal` |
+| `EQUIPMENT_MAIN_BUTTON_*` | ID/nome do botão principal pré-cadastrado na UI | `env-button-main` / `Botao principal` |
 | `STORAGE_MAX_BYTES` | Limite máximo local para clipes | `10737418240` (10GB) |
 | `CLOUD_MAX_BYTES` | Limite máximo no armazenamento S3/R2 | `10737418240` (10GB) |
 
 No modo `mock`, os clipes vão para `mock-s3/` e o limite também respeita `CLOUD_MAX_BYTES`.
+
+A aba **Gestão de equipamento** sempre começa com câmera e botão principais vindos do `.env`
+(camera/dispositivo atual e botão atual), para manter a configuração centralizada.
 
 ## Windows
 

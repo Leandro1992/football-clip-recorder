@@ -34,6 +34,12 @@ export interface AppConfig {
     fps: number;
     format?: string;
   };
+  equipment: {
+    mainCameraId: string;
+    mainCameraName: string;
+    mainButtonId: string;
+    mainButtonName: string;
+  };
   video: {
     bufferDurationSeconds: number;
     postEventDurationSeconds: number;
@@ -191,6 +197,12 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       height: parseRequiredPositiveInteger(env.VIDEO_HEIGHT, 1080, 'VIDEO_HEIGHT'),
       fps: parseRequiredPositiveInteger(env.VIDEO_FPS, 30, 'VIDEO_FPS'),
       format: env.VIDEO_FORMAT || undefined,
+    },
+    equipment: {
+      mainCameraId: env.EQUIPMENT_MAIN_CAMERA_ID || 'env-camera-main',
+      mainCameraName: env.EQUIPMENT_MAIN_CAMERA_NAME || 'Camera principal',
+      mainButtonId: env.EQUIPMENT_MAIN_BUTTON_ID || 'env-button-main',
+      mainButtonName: env.EQUIPMENT_MAIN_BUTTON_NAME || 'Botao principal',
     },
     video: {
       bufferDurationSeconds: parseRequiredPositiveInteger(
