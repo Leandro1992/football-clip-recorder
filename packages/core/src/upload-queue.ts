@@ -52,6 +52,19 @@ export class UploadQueue {
     return this.currentClipId === clipId || this.pendingClips.some((queued) => queued.id === clipId);
   }
 
+  isUploading(clipId: string): boolean {
+    return this.currentClipId === clipId;
+  }
+
+  remove(clipId: string): void {
+    const next = this.pendingClips.filter((clip) => clip.id !== clipId);
+    if (next.length !== this.pendingClips.length) {
+      this.pendingClips.length = 0;
+      this.pendingClips.push(...next);
+      this.emitState();
+    }
+  }
+
   onClipUpdated(callback: ClipListener): void {
     this.clipListeners.add(callback);
   }

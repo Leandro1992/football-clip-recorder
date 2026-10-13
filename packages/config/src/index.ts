@@ -11,6 +11,11 @@ export interface AppConfig {
     port?: number;
     ffmpegPath?: string;
   };
+  auth: {
+    username: string;
+    password: string;
+    sessionTtlHours: number;
+  };
   button: {
     provider: ButtonProvider;
     gpioChip: string;
@@ -43,6 +48,8 @@ export interface AppConfig {
     awsSecretAccessKey?: string;
     s3Prefix?: string;
     maxDiskPercent: number;
+    maxDiskBytes: number;
+    maxCloudBytes: number;
     retentionIntervalSeconds: number;
   };
   sync: {
@@ -141,12 +148,31 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
   if (!Number.isFinite(maxDiskPercent) || maxDiskPercent <= 0 || maxDiskPercent > 95) {
     throw new Error('STORAGE_MAX_PERCENT_FREE must be between 1 and 95');
   }
+  const maxDiskBytes = parseRequiredPositiveInteger(
+    env.STORAGE_MAX_BYTES,
+    10 * 1024 * 1024 * 1024,
+    'STORAGE_MAX_BYTES',
+  );
+  const maxCloudBytes = parseRequiredPositiveInteger(
+    env.CLOUD_MAX_BYTES,
+    10 * 1024 * 1024 * 1024,
+    'CLOUD_MAX_BYTES',
+  );
 
   return {
     app: {
       host: env.HOST || '0.0.0.0',
       port: parseOptionalInteger(env.PORT, 'PORT'),
       ffmpegPath: env.FFMPEG_PATH || undefined,
+    },
+    auth: {
+      username: env.AUTH_USERNAME || 'admin',
+      password: env.AUTH_PASSWORD || 'admin',
+      sessionTtlHours: parseRequiredPositiveInteger(
+        env.AUTH_SESSION_TTL_HOURS,
+        24,
+        'AUTH_SESSION_TTL_HOURS',
+      ),
     },
     button: {
       provider: buttonProvider,
@@ -192,6 +218,8 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY || undefined,
       s3Prefix: env.S3_PREFIX || undefined,
       maxDiskPercent: maxDiskPercent,
+      maxDiskBytes,
+      maxCloudBytes,
       retentionIntervalSeconds: parseRequiredPositiveInteger(
         env.STORAGE_RETENTION_INTERVAL_SECONDS,
         60,

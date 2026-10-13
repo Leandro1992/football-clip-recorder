@@ -10,6 +10,8 @@ export interface StorageRetentionOptions {
   directory: string;
   /** Share of the disk space available to clips (free space + space already used by clips). */
   maxPercent: number;
+  /** Hard cap for local clip storage, regardless of free-disk percentage. */
+  maxBytes?: number;
   logger: Logger;
   isUploaded?: (filePath: string) => boolean;
   getDiskStats?: (directory: string) => Promise<DiskStats>;
@@ -41,7 +43,11 @@ export class StorageRetention {
     const files = await this.listClips();
     const usedBytes = files.reduce((total, file) => total + file.size, 0);
     const { freeBytes } = await (this.options.getDiskStats ?? defaultDiskStats)(directory);
-    const budgetBytes = Math.floor(((freeBytes + usedBytes) * this.options.maxPercent) / 100);
+    const percentBudget = Math.floor(((freeBytes + usedBytes) * this.options.maxPercent) / 100);
+    const budgetBytes =
+      this.options.maxBytes && this.options.maxBytes > 0
+        ? Math.min(percentBudget, this.options.maxBytes)
+        : percentBudget;
     const removed: string[] = [];
 
     if (usedBytes <= budgetBytes) {

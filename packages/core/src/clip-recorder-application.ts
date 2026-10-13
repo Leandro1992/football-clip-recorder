@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import type { AppConfig } from '@football-clip-recorder/config';
 import type {
   ClipStorage,
@@ -127,6 +128,39 @@ export class ClipRecorderApplication {
         this.uploadQueue.retry(clip);
       }
     }
+  }
+
+  async deleteClip(
+    clipId: string,
+    options: { deleteLocal: boolean; deleteCloud: boolean },
+  ): Promise<void> {
+    const clip = this.clips.get(clipId);
+    if (!clip) {
+      throw new Error('Clipe não encontrado.');
+    }
+
+    if (this.uploadQueue.isUploading(clipId)) {
+      throw new Error('Não é possível excluir um clipe durante o upload.');
+    }
+
+    this.uploadQueue.remove(clipId);
+
+    if (options.deleteCloud && clip.uploadedUrl) {
+      await this.dependencies.clipStorage.delete(clip.uploadedUrl, clip);
+    }
+
+    if (options.deleteLocal) {
+      await fs.rm(clip.filePath, { force: true });
+    }
+
+    this.clips.delete(clipId);
+    const list = this.getSortedClips();
+    for (const listener of this.clipListeners) {
+      listener(list);
+    }
+
+    this.status.lastMessage = 'Clipe removido.';
+    this.emitStatus();
   }
 
   forgetClipFiles(filePaths: string[]): void {

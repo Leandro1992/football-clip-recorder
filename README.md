@@ -43,11 +43,14 @@ Copie `.env.example` para `.env` e ajuste. Principais variáveis:
 | `SEGMENT_DURATION_SECONDS` | Duração de cada segmento | `1` |
 | `STORAGE_PROVIDER` | `mock` ou `s3` | `mock` |
 | `AWS_REGION` / `AWS_S3_BUCKET` | Para `s3` (credenciais pelo SDK padrão da AWS) | |
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | Login da interface web | `admin` / `admin` |
 | `BUTTON_PROVIDER` | `virtual` (só UI) ou `gpio` | `virtual` |
 | `GPIO_CHIP` / `GPIO_BUTTON_PIN` | Chip e linha do botão (obrigatório se `gpio`) | `gpiochip0` / |
 | `GPIO_ACTIVE_LOW` / `GPIO_DEBOUNCE_MS` | Polaridade e debounce | `true` / `50` |
+| `STORAGE_MAX_BYTES` | Limite máximo local para clipes | `10737418240` (10GB) |
+| `CLOUD_MAX_BYTES` | Limite máximo no armazenamento S3/R2 | `10737418240` (10GB) |
 
-No modo `mock`, os clipes vão para `mock-s3/` e apenas os **5 mais recentes** são mantidos (aqui e em `runtime/clips/`).
+No modo `mock`, os clipes vão para `mock-s3/` e o limite também respeita `CLOUD_MAX_BYTES`.
 
 ## Windows
 
@@ -108,6 +111,6 @@ npm test
 
 ## API do servidor
 
-`GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/recordings`, `GET /api/recordings/:nome` (suporta Range, `?download`), `GET /api/events` (SSE), `POST /api/trigger`, `POST /api/clips/:id/retry`.
+`POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome` (suporta Range, `?download`), `GET /api/events` (SSE), `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
 
-> A interface web **não tem autenticação**. Use apenas em rede local confiável.
+> A interface web agora exige login. Troque `AUTH_USERNAME` e `AUTH_PASSWORD` no `.env` em produção.

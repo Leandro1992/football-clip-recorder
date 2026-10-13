@@ -4,9 +4,15 @@
 Os clipes em `runtime/clips` podem ocupar até `STORAGE_MAX_PERCENT_FREE` % (padrão 50) do espaço
 **disponível para clipes** = espaço livre atual + espaço já usado pelos clipes (o orçamento não
 encolhe conforme os clipes enchem o disco). Ex.: 20 GB livres e nenhum clipe → até 10 GB.
+Além disso, `STORAGE_MAX_BYTES` aplica um teto absoluto (padrão 10 GB), mesmo que haja mais espaço livre.
 Ao exceder, os clipes mais antigos são apagados; os já sincronizados saem primeiro e apagar um
 clipe ainda não sincronizado gera o log `CLIP_EVICTED` (warn). A verificação roda a cada clipe e
-a cada `STORAGE_RETENTION_INTERVAL_SECONDS`. Em `mock-s3/` o provedor mock mantém só os 5 últimos.
+a cada `STORAGE_RETENTION_INTERVAL_SECONDS`.
+
+## Retenção na nuvem
+No provedor S3/R2, após cada upload o sistema calcula o total armazenado no bucket/prefixo e remove
+os objetos mais antigos quando excede `CLOUD_MAX_BYTES` (padrão 10 GB), registrando `CLOUD_CLIP_EVICTED`.
+No provedor mock o mesmo limite (`CLOUD_MAX_BYTES`) é aplicado no diretório `mock-s3/`.
 
 ## Sincronização offline-first
 - `ConnectivityMonitor` faz HEAD em `SYNC_CONNECTIVITY_URL` a cada `SYNC_CHECK_INTERVAL_SECONDS`.

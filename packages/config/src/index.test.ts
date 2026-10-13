@@ -13,6 +13,10 @@ describe('loadConfig', () => {
     expect(config.camera.width).toBe(1920);
     expect(config.camera.enableAudio).toBe(false);
     expect(config.app.ffmpegPath).toBeUndefined();
+    expect(config.auth.username).toBe('admin');
+    expect(config.auth.password).toBe('admin');
+    expect(config.storage.maxDiskBytes).toBe(10 * 1024 * 1024 * 1024);
+    expect(config.storage.maxCloudBytes).toBe(10 * 1024 * 1024 * 1024);
     expect(config.paths.previewRoot).toContain('runtime');
   });
 

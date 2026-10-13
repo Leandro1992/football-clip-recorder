@@ -16,11 +16,14 @@ export function createClipStorage(config: AppConfig, logger: Logger): ClipStorag
       endpoint: config.storage.s3Endpoint,
       accessKeyId: config.storage.awsAccessKeyId,
       secretAccessKey: config.storage.awsSecretAccessKey,
+      maxRetainedBytes: config.storage.maxCloudBytes,
+      logger,
     });
   }
 
   return new MockStorage({
     rootDirectory: config.paths.mockS3Root,
     logger,
+    maxRetainedBytes: config.storage.maxCloudBytes,
   });
 }

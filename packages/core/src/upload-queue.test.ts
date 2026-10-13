@@ -10,6 +10,7 @@ describe('UploadQueue', () => {
         processedIds.push(metadata.id);
         return { provider: 'mock', url: `mock-s3://${metadata.id}.mp4` };
       },
+      async delete(): Promise<void> {},
     };
 
     const queue = new UploadQueue(storage, createTestLogger());
@@ -46,6 +47,7 @@ describe('UploadQueue', () => {
       async upload(): Promise<UploadResult> {
         throw new Error('upload failed');
       },
+      async delete(): Promise<void> {},
     };
 
     const queue = new UploadQueue(storage, createTestLogger());

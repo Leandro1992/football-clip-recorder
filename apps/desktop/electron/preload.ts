@@ -1,8 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopApi } from './ipc-types';
+import type { DesktopApi, EquipmentConfig, RecordingDeleteScope } from './ipc-types';
 import type { ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
 
 const api: DesktopApi = {
+  async getAuthSession() {
+    return ipcRenderer.invoke('app:get-auth-session');
+  },
+  async login(username: string, password: string) {
+    return ipcRenderer.invoke('app:login', username, password);
+  },
+  async logout() {
+    await ipcRenderer.invoke('app:logout');
+  },
+  async getPublicConfig() {
+    return ipcRenderer.invoke('app:get-public-config');
+  },
   async getSnapshot() {
     return ipcRenderer.invoke('app:get-snapshot');
   },
@@ -18,8 +30,23 @@ const api: DesktopApi = {
   async getRecordings() {
     return ipcRenderer.invoke('app:get-recordings');
   },
+  async deleteRecordings(ids: string[], scope: RecordingDeleteScope) {
+    return ipcRenderer.invoke('app:delete-recordings', ids, scope);
+  },
   async openRecording(filePath: string) {
     await ipcRenderer.invoke('app:open-recording', filePath);
+  },
+  async getEquipmentConfig() {
+    return ipcRenderer.invoke('app:get-equipment-config');
+  },
+  async saveEquipmentConfig(config: EquipmentConfig) {
+    return ipcRenderer.invoke('app:save-equipment-config', config);
+  },
+  async discoverCameras() {
+    return ipcRenderer.invoke('app:discover-cameras');
+  },
+  async validateGpioPin(pin: number, chip?: string) {
+    return ipcRenderer.invoke('app:validate-gpio-pin', pin, chip);
   },
   onStatusChange(callback: (status: ApplicationStatus) => void) {
     const listener = (_event: Electron.IpcRendererEvent, status: ApplicationStatus) => {

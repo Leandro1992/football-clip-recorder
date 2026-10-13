@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import { execFile } from 'node:child_process';
+import type { CameraDeviceInfo } from '@football-clip-recorder/camera';
 import type { ApplicationStatus, ClipMetadata, ClipRecorderApplication, Logger } from '@football-clip-recorder/core';
+import type { EquipmentConfig, EquipmentStore } from './equipment-store';
 
 export interface HttpServerOptions {
   application: ClipRecorderApplication;
@@ -10,8 +14,30 @@ export interface HttpServerOptions {
   previewImagePath: string;
   clipsRoot: string;
   webRoot: string;
+  auth: {
+    username: string;
+    password: string;
+    sessionTtlHours: number;
+  };
+  storage: {
+    maxLocalBytes: number;
+    maxCloudBytes: number;
+  };
+  equipmentStore: EquipmentStore;
+  detectCameras: () => Promise<CameraDeviceInfo[]>;
   logger: Logger;
 }
+
+interface AuthSession {
+  token: string;
+  username: string;
+  expiresAt: number;
+}
+
+type RecordingDeleteScope = 'local' | 'cloud' | 'both';
+
+const SESSION_COOKIE = 'fcr_session';
+const JSON_BODY_MAX_BYTES = 1 * 1024 * 1024;
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -44,6 +70,71 @@ function isInside(root: string, candidate: string): boolean {
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
 }
 
+function parseCookies(rawCookie: string | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!rawCookie) {
+    return map;
+  }
+  for (const piece of rawCookie.split(';')) {
+    const [rawName, ...rawValue] = piece.trim().split('=');
+    if (!rawName) {
+      continue;
+    }
+    map.set(rawName, decodeURIComponent(rawValue.join('=')));
+  }
+  return map;
+}
+
+async function readJsonBody<T>(request: http.IncomingMessage): Promise<T> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+
+  await new Promise<void>((resolve, reject) => {
+    request.on('data', (chunk: Buffer) => {
+      total += chunk.length;
+      if (total > JSON_BODY_MAX_BYTES) {
+        reject(new Error('Payload too large'));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => resolve());
+    request.on('error', (error) => reject(error));
+  });
+
+  if (chunks.length === 0) {
+    return {} as T;
+  }
+
+  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T;
+}
+
+function parseDeleteScope(rawScope: unknown): RecordingDeleteScope {
+  if (rawScope === 'local' || rawScope === 'cloud' || rawScope === 'both') {
+    return rawScope;
+  }
+  throw new Error('Escopo inválido. Use local, cloud ou both.');
+}
+
+function sanitizeEquipmentConfig(input: unknown): EquipmentConfig {
+  if (!input || typeof input !== 'object') {
+    throw new Error('Configuração inválida.');
+  }
+  const candidate = input as Partial<EquipmentConfig>;
+  const cameras = Array.isArray(candidate.cameras)
+    ? candidate.cameras.filter((camera) => camera && typeof camera.id === 'string')
+    : [];
+  const buttons = Array.isArray(candidate.buttons)
+    ? candidate.buttons.filter((button) => button && typeof button.id === 'string')
+    : [];
+  const bindings = Array.isArray(candidate.bindings)
+    ? candidate.bindings.filter((binding) => binding && typeof binding.buttonId === 'string')
+    : [];
+
+  return { cameras, buttons, bindings };
+}
+
 async function serveFile(
   request: http.IncomingMessage,
   response: http.ServerResponse,
@@ -70,7 +161,6 @@ async function serveFile(
     headers['Content-Disposition'] = `attachment; filename="${path.basename(filePath)}"`;
   }
 
-  // Range requests are required for seeking in <video> elements.
   const range = request.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
   if (range && (range[1] || range[2])) {
     let start = range[1] ? Number(range[1]) : stats.size - Number(range[2]);
@@ -105,9 +195,52 @@ async function serveFile(
   fs.createReadStream(filePath).pipe(response);
 }
 
+function runCommand(command: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(command, args, { timeout: 10_000 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
 export function createHttpServer(options: HttpServerOptions): http.Server {
   const { application, logger } = options;
   const eventClients = new Set<http.ServerResponse>();
+  const sessions = new Map<string, AuthSession>();
+
+  function createSessionCookie(username: string): string {
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = Date.now() + options.auth.sessionTtlHours * 60 * 60 * 1000;
+    sessions.set(token, { token, username, expiresAt });
+    return token;
+  }
+
+  function resolveSession(request: http.IncomingMessage): AuthSession | undefined {
+    const token = parseCookies(request.headers.cookie).get(SESSION_COOKIE);
+    if (!token) {
+      return undefined;
+    }
+    const session = sessions.get(token);
+    if (!session) {
+      return undefined;
+    }
+    if (session.expiresAt < Date.now()) {
+      sessions.delete(token);
+      return undefined;
+    }
+    return session;
+  }
+
+  function clearSession(request: http.IncomingMessage): void {
+    const token = parseCookies(request.headers.cookie).get(SESSION_COOKIE);
+    if (token) {
+      sessions.delete(token);
+    }
+  }
 
   function broadcast(event: 'status' | 'clips', payload: ApplicationStatus | ClipMetadata[]): void {
     const message = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -137,6 +270,8 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
             sizeBytes: stats.size,
             modifiedAt: stats.mtimeMs,
             isUploaded: clip?.storageStatus === 'uploaded',
+            storageStatus: clip?.storageStatus ?? 'pending',
+            uploadedUrl: clip?.uploadedUrl,
           };
         }),
     );
@@ -168,6 +303,53 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
     pathname: string,
   ): Promise<void> {
     const method = request.method ?? 'GET';
+    const session = resolveSession(request);
+
+    if (method === 'POST' && pathname === '/api/auth/login') {
+      const body = await readJsonBody<{ username?: string; password?: string }>(request);
+      if (body.username !== options.auth.username || body.password !== options.auth.password) {
+        sendError(response, 401, 'Usuário ou senha inválidos.');
+        return;
+      }
+
+      const token = createSessionCookie(body.username);
+      response.setHeader(
+        'Set-Cookie',
+        `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax`,
+      );
+      sendJson(response, 200, { authenticated: true, username: body.username });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/auth/session') {
+      sendJson(response, 200, {
+        authenticated: Boolean(session),
+        username: session?.username,
+      });
+      return;
+    }
+
+    if (method === 'POST' && pathname === '/api/auth/logout') {
+      clearSession(request);
+      response.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
+      sendJson(response, 200, { ok: true });
+      return;
+    }
+
+    if (!session) {
+      sendError(response, 401, 'Faça login para acessar esta API.');
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/config') {
+      sendJson(response, 200, {
+        storage: {
+          maxLocalBytes: options.storage.maxLocalBytes,
+          maxCloudBytes: options.storage.maxCloudBytes,
+        },
+      });
+      return;
+    }
 
     if (method === 'GET' && pathname === '/api/snapshot') {
       sendJson(response, 200, application.getSnapshot());
@@ -181,6 +363,35 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
 
     if (method === 'GET' && pathname === '/api/recordings') {
       sendJson(response, 200, await listRecordings());
+      return;
+    }
+
+    if (method === 'DELETE' && pathname === '/api/recordings') {
+      const body = await readJsonBody<{ ids?: string[]; scope?: RecordingDeleteScope }>(request);
+      const ids = Array.isArray(body.ids) ? body.ids.filter((id) => typeof id === 'string' && id) : [];
+      if (ids.length === 0) {
+        sendError(response, 400, 'Informe ao menos um id de gravação.');
+        return;
+      }
+      const scope = parseDeleteScope(body.scope ?? 'local');
+      const deleteLocal = scope === 'local' || scope === 'both';
+      const deleteCloud = scope === 'cloud' || scope === 'both';
+      const deletedIds: string[] = [];
+      const errors: Array<{ id: string; error: string }> = [];
+
+      for (const id of ids) {
+        try {
+          await application.deleteClip(id, { deleteLocal, deleteCloud });
+          deletedIds.push(id);
+        } catch (error) {
+          errors.push({
+            id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      sendJson(response, errors.length === 0 ? 200 : 207, { deletedIds, errors });
       return;
     }
 
@@ -211,6 +422,55 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
     if (method === 'POST' && retryMatch) {
       application.retryUpload(decodeURIComponent(retryMatch[1]));
       sendJson(response, 202, { ok: true });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/equipment') {
+      sendJson(response, 200, await options.equipmentStore.load());
+      return;
+    }
+
+    if (method === 'PUT' && pathname === '/api/equipment') {
+      const body = await readJsonBody<EquipmentConfig>(request);
+      const nextConfig = sanitizeEquipmentConfig(body);
+      await options.equipmentStore.save(nextConfig);
+      sendJson(response, 200, { ok: true, config: nextConfig });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/equipment/discovery') {
+      const cameras = await options.detectCameras();
+      sendJson(response, 200, { cameras });
+      return;
+    }
+
+    if (method === 'POST' && pathname === '/api/equipment/validate-gpio') {
+      const body = await readJsonBody<{ pin?: number; chip?: string }>(request);
+      if (typeof body.pin !== 'number') {
+        sendError(response, 400, 'Pin inválido.');
+        return;
+      }
+
+      if (process.platform !== 'linux') {
+        sendJson(response, 200, {
+          ok: false,
+          message: 'Validação de GPIO disponível apenas no Linux.',
+        });
+        return;
+      }
+
+      try {
+        const { stdout } = await runCommand('pinctrl', ['get', String(body.pin)]);
+        sendJson(response, 200, {
+          ok: true,
+          message: stdout.trim(),
+        });
+      } catch (error) {
+        sendJson(response, 200, {
+          ok: false,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
       return;
     }
 
@@ -285,18 +545,28 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
 
   server.on('close', () => {
     clearInterval(heartbeat);
+    clearInterval(sessionCleanupTimer);
     for (const client of eventClients) {
       client.end();
     }
     eventClients.clear();
   });
 
-  // SSE connections stay open; keep them alive through Wi-Fi/proxy idle timeouts.
   const heartbeat = setInterval(() => {
     for (const client of eventClients) {
       client.write(': ping\n\n');
     }
   }, 15_000);
+
+  const sessionCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [token, session] of sessions) {
+      if (session.expiresAt < now) {
+        sessions.delete(token);
+      }
+    }
+  }, 60_000);
+  sessionCleanupTimer.unref();
 
   return server;
 }

@@ -27,6 +27,7 @@ export interface TriggerButton {
 
 export interface ClipStorage {
   upload(filePath: string, metadata: ClipMetadata): Promise<UploadResult>;
+  delete(uploadedUrl: string, metadata?: ClipMetadata): Promise<void>;
 }
 
 export interface VideoBufferPort {

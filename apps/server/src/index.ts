@@ -9,11 +9,17 @@ import {
   SyncService,
   type TriggerButton,
 } from '@football-clip-recorder/core';
-import { resolveFfmpegPath, UsbCameraLinux, UsbCameraWindows } from '@football-clip-recorder/camera';
+import {
+  listCameraDevices,
+  resolveFfmpegPath,
+  UsbCameraLinux,
+  UsbCameraWindows,
+} from '@football-clip-recorder/camera';
 import { CompositeTriggerButton, GpioButton, VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
 import { createHttpServer } from './http-server';
+import { EquipmentStore } from './equipment-store';
 
 const CAMERA_RETRY_DELAY_MS = 5000;
 
@@ -21,6 +27,8 @@ const logger = new ConsoleLogger();
 const projectRoot = path.resolve(__dirname, '../../..');
 const config = loadConfig({ projectRoot });
 ensureRuntimeDirectories(config);
+const equipmentStore = new EquipmentStore(config.paths.runtimeRoot);
+const equipmentConfig = equipmentStore.loadSync();
 
 // Segments and previews are only a rolling buffer; leftovers from earlier runs would fill the SD card.
 for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
@@ -65,6 +73,30 @@ if (config.button.provider === 'gpio') {
     }),
   );
 }
+for (const button of equipmentConfig.buttons) {
+  if (button.type !== 'gpio' || typeof button.gpioPin !== 'number') {
+    continue;
+  }
+  const exists = triggerSources.some((source) => {
+    return (
+      source instanceof GpioButton &&
+      config.button.gpioPin === button.gpioPin &&
+      config.button.gpioChip === (button.gpioChip ?? 'gpiochip0')
+    );
+  });
+  if (exists) {
+    continue;
+  }
+  triggerSources.push(
+    new GpioButton({
+      pin: button.gpioPin,
+      chip: button.gpioChip ?? 'gpiochip0',
+      activeLow: button.activeLow ?? true,
+      debounceMs: config.button.debounceMs,
+      logger,
+    }),
+  );
+}
 const triggerButton = new CompositeTriggerButton(triggerSources, (error) => {
   logger.error('TRIGGER_SOURCE_START_FAILED', {
     error: error instanceof Error ? error.message : String(error),
@@ -101,6 +133,7 @@ const syncService = config.sync.enabled
 const retention = new StorageRetention({
   directory: config.paths.clipsRoot,
   maxPercent: config.storage.maxDiskPercent,
+  maxBytes: config.storage.maxDiskBytes,
   isUploaded: (filePath) =>
     application.getSnapshot().clips.some((clip) => clip.filePath === filePath && clip.storageStatus === 'uploaded'),
   logger,
@@ -134,6 +167,13 @@ const server = createHttpServer({
   webRoot: process.env.WEB_ROOT
     ? path.resolve(process.env.WEB_ROOT)
     : path.join(projectRoot, 'apps', 'desktop', 'dist', 'renderer'),
+  auth: config.auth,
+  storage: {
+    maxLocalBytes: config.storage.maxDiskBytes,
+    maxCloudBytes: config.storage.maxCloudBytes,
+  },
+  equipmentStore,
+  detectCameras: () => listCameraDevices(config.app.ffmpegPath),
   logger,
 });
 

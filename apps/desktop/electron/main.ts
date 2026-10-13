@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { loadConfig, ensureRuntimeDirectories } from '@football-clip-recorder/config';
 import {
@@ -8,7 +9,7 @@ import {
   type ApplicationStatus,
   type ClipMetadata,
 } from '@football-clip-recorder/core';
-import { resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
+import { listCameraDevices, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
 import { VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
@@ -49,6 +50,8 @@ const clipBuilder = new ClipBuilder({
 
 const triggerButton = new VirtualButton();
 const clipStorage = createClipStorage(config, logger);
+const equipmentConfigPath = path.join(config.paths.runtimeRoot, 'equipment-config.json');
+let authenticated = false;
 
 const clipRecorderApplication = new ClipRecorderApplication({
   config,
@@ -102,6 +105,30 @@ async function createWindow(): Promise<void> {
 }
 
 function registerIpcHandlers(): void {
+  ipcMain.handle('app:get-auth-session', () => ({
+    authenticated,
+    username: authenticated ? config.auth.username : undefined,
+  }));
+
+  ipcMain.handle('app:login', async (_event, username: string, password: string) => {
+    if (username === config.auth.username && password === config.auth.password) {
+      authenticated = true;
+      return { authenticated: true, username };
+    }
+    throw new Error('Usuário ou senha inválidos.');
+  });
+
+  ipcMain.handle('app:logout', async () => {
+    authenticated = false;
+  });
+
+  ipcMain.handle('app:get-public-config', () => ({
+    storage: {
+      maxLocalBytes: config.storage.maxDiskBytes,
+      maxCloudBytes: config.storage.maxCloudBytes,
+    },
+  }));
+
   ipcMain.handle('app:get-snapshot', () => {
     return clipRecorderApplication.getSnapshot();
   });
@@ -158,6 +185,8 @@ function registerIpcHandlers(): void {
             sizeBytes: stats.size,
             modifiedAt: stats.mtimeMs,
             isUploaded: clip?.storageStatus === 'uploaded',
+            storageStatus: clip?.storageStatus ?? 'pending',
+            uploadedUrl: clip?.uploadedUrl,
           };
         }),
     );
@@ -165,8 +194,57 @@ function registerIpcHandlers(): void {
     return files.sort((left, right) => right.modifiedAt - left.modifiedAt);
   });
 
+  ipcMain.handle('app:delete-recordings', async (_event, ids: string[], scope: 'local' | 'cloud' | 'both') => {
+    const deletedIds: string[] = [];
+    const errors: Array<{ id: string; error: string }> = [];
+    for (const id of ids) {
+      try {
+        await clipRecorderApplication.deleteClip(id, {
+          deleteLocal: scope === 'local' || scope === 'both',
+          deleteCloud: scope === 'cloud' || scope === 'both',
+        });
+        deletedIds.push(id);
+      } catch (error) {
+        errors.push({ id, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return { deletedIds, errors };
+  });
+
   ipcMain.handle('app:open-recording', async (_event, filePath: string) => {
     await shell.openPath(filePath);
+  });
+
+  ipcMain.handle('app:get-equipment-config', async () => {
+    try {
+      return JSON.parse(await fs.readFile(equipmentConfigPath, 'utf8'));
+    } catch {
+      return { cameras: [], buttons: [], bindings: [] };
+    }
+  });
+
+  ipcMain.handle('app:save-equipment-config', async (_event, equipmentConfig: unknown) => {
+    await fs.writeFile(equipmentConfigPath, JSON.stringify(equipmentConfig, null, 2));
+    return equipmentConfig;
+  });
+
+  ipcMain.handle('app:discover-cameras', async () => {
+    return { cameras: await listCameraDevices(config.app.ffmpegPath) };
+  });
+
+  ipcMain.handle('app:validate-gpio-pin', async (_event, pin: number) => {
+    if (process.platform !== 'linux') {
+      return { ok: false, message: 'Validação de GPIO disponível apenas no Linux.' };
+    }
+    return new Promise<{ ok: boolean; message: string }>((resolve) => {
+      execFile('pinctrl', ['get', String(pin)], { timeout: 10_000 }, (error, stdout, stderr) => {
+        if (error) {
+          resolve({ ok: false, message: stderr || error.message });
+          return;
+        }
+        resolve({ ok: true, message: stdout.trim() });
+      });
+    });
   });
 }
 

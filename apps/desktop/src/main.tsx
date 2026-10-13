@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { createHttpApi } from './http-api';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles.css';
 
 // Electron injects window.desktopApi via preload; in a plain browser we talk to the Node server over HTTP.
