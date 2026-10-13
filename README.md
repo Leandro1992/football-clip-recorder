@@ -1,4 +1,4 @@
-# Football Clip Recorder
+# Olho no lance (Football Clip Recorder)
 
 Grava continuamente uma câmera USB em segmentos curtos de vídeo, mantém um buffer circular e, quando o botão é acionado, gera um clipe MP4 (últimos N segundos + alguns segundos pós-evento) e envia ao armazenamento (local/mock ou AWS S3).
 

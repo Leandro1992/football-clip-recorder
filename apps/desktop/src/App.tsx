@@ -31,6 +31,31 @@ const defaultEquipmentConfig: EquipmentConfig = {
   buttons: [],
   bindings: [],
 };
+const PRODUCT_NAME = 'Olho no lance';
+const PRODUCT_TAGLINE = 'Registro inteligente de lances';
+
+function BrandLogo({ small = false }: { small?: boolean }) {
+  return (
+    <svg
+      className={small ? 'brand-logo brand-logo-sm' : 'brand-logo'}
+      viewBox="0 0 64 64"
+      role="img"
+      aria-label={PRODUCT_NAME}
+    >
+      <defs>
+        <linearGradient id="olhoNoLanceGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#16a34a" />
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="30" fill="url(#olhoNoLanceGradient)" />
+      <ellipse cx="32" cy="32" rx="20" ry="13" fill="#0f172a" opacity="0.95" />
+      <circle cx="32" cy="32" r="8.5" fill="#22c55e" />
+      <circle cx="32" cy="32" r="4.3" fill="#f8fafc" />
+      <path d="M20 48 L32 41 L44 48" stroke="#f8fafc" strokeWidth="2.5" fill="none" opacity="0.9" />
+    </svg>
+  );
+}
 
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -379,7 +404,14 @@ export function App() {
           <div className="col-12 col-md-6 col-lg-4">
             <div className="card shadow-sm">
               <div className="card-body">
-                <h1 className="h4 mb-3">Login</h1>
+                <div className="d-flex align-items-center gap-3 mb-3">
+                  <BrandLogo />
+                  <div>
+                    <h1 className="h5 mb-1">{PRODUCT_NAME}</h1>
+                    <div className="small text-secondary">{PRODUCT_TAGLINE}</div>
+                  </div>
+                </div>
+                <h2 className="h6 mb-3">Login</h2>
                 <div className="mb-3">
                   <label className="form-label">Usuário</label>
                   <input
@@ -417,7 +449,13 @@ export function App() {
   return (
     <main className="container-fluid py-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="h4 m-0">Football Clip Recorder</h1>
+        <div className="d-flex align-items-center gap-2">
+          <BrandLogo small />
+          <div>
+            <h1 className="h4 m-0">{PRODUCT_NAME}</h1>
+            <div className="small text-secondary">{PRODUCT_TAGLINE}</div>
+          </div>
+        </div>
         <div className="d-flex gap-2">
           <span className="badge text-bg-secondary align-self-center">{session.username}</span>
           <button
