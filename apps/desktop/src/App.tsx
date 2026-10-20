@@ -413,7 +413,7 @@ export function App() {
     const saved = await window.desktopApi.saveEquipmentConfig(equipmentConfig);
     setEquipmentConfig(saved);
     setEquipmentMessage(
-      'Configuração salva. Câmeras vinculadas aparecem na aba Live. Botões físicos novos valem depois de reiniciar o serviço.',
+      'Configuração salva. Um botão grava todas as câmeras vinculadas a ele. Uma câmera nova passa a gravar depois de reiniciar o serviço.',
     );
   }
 

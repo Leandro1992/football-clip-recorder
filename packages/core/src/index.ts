@@ -6,3 +6,5 @@ export * from './clip-recorder-application';
 export * from './storage-retention';
 export * from './connectivity-monitor';
 export * from './sync-service';
+export * from './button-bindings';
+export * from './recording-fleet';

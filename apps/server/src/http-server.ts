@@ -5,11 +5,19 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import type { CameraDeviceInfo, LivePreviewCard } from '@football-clip-recorder/camera';
-import type { ApplicationStatus, ClipMetadata, ClipRecorderApplication, Logger } from '@football-clip-recorder/core';
+import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata, Logger } from '@football-clip-recorder/core';
 import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
+export interface ManagedRecorder {
+  getSnapshot(): ApplicationSnapshot;
+  onStatusChange(callback: (status: ApplicationStatus) => void): void;
+  onClipsChange(callback: (clips: ClipMetadata[]) => void): void;
+  deleteClip(clipId: string, options: { deleteLocal: boolean; deleteCloud: boolean }): Promise<void>;
+  retryUpload(clipId: string): void;
+}
+
 export interface HttpServerOptions {
-  application: ClipRecorderApplication;
+  application: ManagedRecorder;
   pressTrigger: () => void;
   previewImagePath: string;
   clipsRoot: string;

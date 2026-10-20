@@ -158,9 +158,25 @@ export function buildLiveCameraCards(
   ];
 }
 
+/** One live card per active camera that has an active button. */
+export function buildBoundCameraCards(catalog: EquipmentCatalog): LiveCameraCard[] {
+  return selectLinkedCameras(catalog).map((item) => ({
+    key: item.camera.id,
+    cameraId: item.camera.id,
+    deviceId: item.camera.deviceId.trim(),
+    title: item.camera.name,
+    buttonNames: [...item.buttonNames],
+    source: 'preview' as const,
+  }));
+}
+
 export function previewFileName(cameraId: string): string {
   const safe = cameraId.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `live-${safe}.jpg`;
+}
+
+export async function readPreviewFrame(filePath: string): Promise<{ imageDataUrl?: string; updatedAt?: number }> {
+  return readJpegDataUrl(filePath);
 }
 
 async function readJpegDataUrl(

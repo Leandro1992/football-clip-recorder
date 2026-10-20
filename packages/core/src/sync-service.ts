@@ -1,12 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { ConnectivityMonitor } from './connectivity-monitor';
-import type { ClipRecorderApplication } from './clip-recorder-application';
-import type { Logger } from './interfaces';
 import type { ClipMetadata } from './types';
+import type { Logger } from './interfaces';
+
+export interface SyncControlledRecorder {
+  setUploadsPaused(paused: boolean): void;
+  onClipsChange(callback: (clips: ClipMetadata[]) => void): void;
+  restoreClip(clip: ClipMetadata): void;
+  retryFailedUploads(): void;
+}
 
 export interface SyncServiceOptions {
-  application: ClipRecorderApplication;
+  application: SyncControlledRecorder;
   monitor: ConnectivityMonitor;
   clipsRoot: string;
   stateFilePath: string;

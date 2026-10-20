@@ -2,17 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, ensureRuntimeDirectories } from '@football-clip-recorder/config';
 import {
+  cameraIdsForGpioPin,
   ClipRecorderApplication,
   ConnectivityMonitor,
   ConsoleLogger,
+  RecordingFleet,
   StorageRetention,
   SyncService,
   type TriggerButton,
 } from '@football-clip-recorder/core';
 import {
+  buildBoundCameraCards,
   listCameraDevices,
-  LivePreviewHub,
+  readPreviewFrame,
   resolveFfmpegPath,
+  selectLinkedCameras,
   UsbCameraLinux,
   UsbCameraWindows,
 } from '@football-clip-recorder/camera';
@@ -67,7 +71,6 @@ const seededEquipmentConfig: EquipmentConfig = {
 const equipmentStore = new EquipmentStore(config.paths.runtimeRoot, seededEquipmentConfig);
 const equipmentConfig = equipmentStore.loadSync();
 
-// Segments and previews are only a rolling buffer; leftovers from earlier runs would fill the SD card.
 for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
   for (const entry of fs.readdirSync(root)) {
     if (entry.startsWith('session-')) {
@@ -77,112 +80,133 @@ for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
 }
 
 const sessionName = `session-${new Date().toISOString().replaceAll(':', '-')}`;
-const previewImagePath = path.join(config.paths.previewRoot, `${sessionName}.jpg`);
-
 const CameraClass = process.platform === 'win32' ? UsbCameraWindows : UsbCameraLinux;
-const camera = new CameraClass({
-  outputDirectory: path.join(config.paths.segmentsRoot, sessionName),
-  previewImagePath,
-  segmentDurationSeconds: config.video.segmentDurationSeconds,
-  width: config.camera.width,
-  height: config.camera.height,
-  fps: config.camera.fps,
-  format: config.camera.format,
-  deviceName: config.camera.deviceName,
-  audioDeviceName: config.camera.audioDeviceName,
-  enableAudio: config.camera.enableAudio,
-  audioGainDb: config.camera.audioGainDb,
-  audioDenoise: config.camera.audioDenoise,
-  ffmpegPath: config.app.ffmpegPath,
-  logger,
+const linkedCameras = selectLinkedCameras(equipmentConfig);
+const recordingTargets =
+  linkedCameras.length > 0
+    ? linkedCameras.map((item) => ({
+        id: item.camera.id,
+        deviceId: item.camera.deviceId.trim(),
+        name: item.camera.name,
+      }))
+    : [
+        {
+          id: config.equipment.mainCameraId,
+          deviceId: config.camera.deviceName || '',
+          name: config.equipment.mainCameraName,
+        },
+      ];
+
+const clipStorage = createClipStorage(config, logger);
+const clipBuilder = new ClipBuilder({
+  tempDirectory: config.paths.tempRoot,
+  ffmpegPath: config.app.ffmpegPath ?? resolveFfmpegPath(),
 });
 
-const virtualButton = new VirtualButton();
-const triggerSources: TriggerButton[] = [virtualButton];
-if (
-  config.button.provider === 'gpio' &&
-  equipmentConfig.buttons.some((button) => button.id === config.equipment.mainButtonId && button.isActive)
-) {
-  triggerSources.push(
-    new GpioButton({
-      pin: config.button.gpioPin as number,
-      chip: config.button.gpioChip,
-      activeLow: config.button.activeLow,
-      debounceMs: config.button.debounceMs,
-      logger,
-    }),
-  );
+interface RunningLane {
+  cameraId: string;
+  deviceId: string;
+  name: string;
+  previewImagePath: string;
+  camera: UsbCameraWindows;
+  application: ClipRecorderApplication;
+  started: boolean;
+  retryTimer?: NodeJS.Timeout;
 }
-for (const button of equipmentConfig.buttons) {
-  if (button.type !== 'gpio' || typeof button.gpioPin !== 'number' || !button.isActive) {
-    continue;
-  }
-  const exists = triggerSources.some((source) => {
-    return (
-      source instanceof GpioButton &&
-      config.button.gpioPin === button.gpioPin &&
-      config.button.gpioChip === (button.gpioChip ?? 'gpiochip0')
-    );
+
+function laneFileKey(cameraId: string): string {
+  const safe = cameraId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return safe || 'camera';
+}
+
+const lanes: RunningLane[] = recordingTargets.map((target, index) => {
+  const key = laneFileKey(target.id);
+  const previewImagePath = path.join(config.paths.previewRoot, `${sessionName}-${key}.jpg`);
+  const camera = new CameraClass({
+    outputDirectory: path.join(config.paths.segmentsRoot, `${sessionName}-${key}`),
+    previewImagePath,
+    segmentDurationSeconds: config.video.segmentDurationSeconds,
+    width: config.camera.width,
+    height: config.camera.height,
+    fps: config.camera.fps,
+    format: config.camera.format,
+    deviceName: target.deviceId || undefined,
+    audioDeviceName: index === 0 ? config.camera.audioDeviceName : undefined,
+    enableAudio: index === 0 && config.camera.enableAudio,
+    audioGainDb: config.camera.audioGainDb,
+    audioDenoise: config.camera.audioDenoise,
+    ffmpegPath: config.app.ffmpegPath,
+    logger,
   });
-  if (exists) {
+  const application = new ClipRecorderApplication({
+    config,
+    camera,
+    triggerButton: new VirtualButton(),
+    videoBuffer: new VideoBuffer({ bufferDurationSeconds: config.video.bufferDurationSeconds, logger }),
+    clipBuilder,
+    clipStorage,
+    logger,
+  });
+
+  return {
+    cameraId: target.id,
+    deviceId: target.deviceId,
+    name: target.name,
+    previewImagePath,
+    camera,
+    application,
+    started: false,
+  };
+});
+
+const fleet = new RecordingFleet(
+  lanes.map((lane) => ({ cameraId: lane.cameraId, application: lane.application })),
+  logger,
+);
+fleet.setRecordingEnabled(
+  equipmentConfig.cameras.some((camera) => camera.isActive),
+  'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
+);
+
+const gpioSources: TriggerButton[] = [];
+const seenPins = new Set<string>();
+for (const button of equipmentConfig.buttons) {
+  if (button.type !== 'gpio' || !button.isActive || typeof button.gpioPin !== 'number') {
     continue;
   }
-  triggerSources.push(
-    new GpioButton({
-      pin: button.gpioPin,
-      chip: button.gpioChip ?? 'gpiochip0',
-      activeLow: button.activeLow ?? true,
-      debounceMs: config.button.debounceMs,
-      logger,
-    }),
-  );
+
+  const chip = button.gpioChip || config.button.gpioChip || 'gpiochip0';
+  const pinKey = `${chip}:${button.gpioPin}`;
+  if (seenPins.has(pinKey)) {
+    continue;
+  }
+  seenPins.add(pinKey);
+
+  const pin = button.gpioPin;
+  const gpio = new GpioButton({
+    pin,
+    chip,
+    activeLow: button.activeLow ?? config.button.activeLow,
+    debounceMs: config.button.debounceMs,
+    logger,
+  });
+  gpio.onPress(() => {
+    const cameraIds = cameraIdsForGpioPin(equipmentStore.loadSync(), pin, chip);
+    logger.info('GPIO_TRIGGER', { pin, chip, cameraIds });
+    void fleet.trigger(cameraIds);
+  });
+  gpioSources.push(gpio);
 }
-const triggerButton = new CompositeTriggerButton(triggerSources, (error) => {
+
+const gpioButton = new CompositeTriggerButton(gpioSources, (error) => {
   logger.error('TRIGGER_SOURCE_START_FAILED', {
     error: error instanceof Error ? error.message : String(error),
   });
 });
 
-function recordingDeviceId(): string | undefined {
-  const id = camera.getCameraId();
-  if (!id || id === 'unresolved-camera') {
-    return config.camera.deviceName;
-  }
-  return id;
-}
-
-const livePreview = new LivePreviewHub({
-  previewDirectory: config.paths.previewRoot,
-  recordingPreviewPath: previewImagePath,
-  resolveRecordingDeviceId: recordingDeviceId,
-  width: config.camera.width,
-  height: config.camera.height,
-  fps: config.camera.fps,
-  format: config.camera.format,
-  ffmpegPath: config.app.ffmpegPath,
-  logger,
-});
-
-const application = new ClipRecorderApplication({
-  config,
-  camera,
-  triggerButton,
-  videoBuffer: new VideoBuffer({ bufferDurationSeconds: config.video.bufferDurationSeconds, logger }),
-  clipBuilder: new ClipBuilder({
-    tempDirectory: config.paths.tempRoot,
-    ffmpegPath: config.app.ffmpegPath ?? resolveFfmpegPath(),
-  }),
-  clipStorage: createClipStorage(config, logger),
-  logger,
-});
-application.setRecordingEnabled(
-  equipmentConfig.cameras.some((camera) => camera.isActive),
-  'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
-);
-
 const syncService = config.sync.enabled
   ? new SyncService({
-      application,
+      application: fleet,
       monitor: new ConnectivityMonitor({
         url: config.sync.connectivityUrl,
         intervalMs: config.sync.checkIntervalSeconds * 1000,
@@ -199,7 +223,7 @@ const retention = new StorageRetention({
   maxPercent: config.storage.maxDiskPercent,
   maxBytes: config.storage.maxDiskBytes,
   isUploaded: (filePath) =>
-    application.getSnapshot().clips.some((clip) => clip.filePath === filePath && clip.storageStatus === 'uploaded'),
+    fleet.getSnapshot().clips.some((clip) => clip.filePath === filePath && clip.storageStatus === 'uploaded'),
   logger,
 });
 let retentionRunning = false;
@@ -211,7 +235,7 @@ async function runRetention(): Promise<void> {
   try {
     const result = await retention.enforce();
     if (result.removed.length > 0) {
-      application.forgetClipFiles(result.removed);
+      fleet.forgetClipFiles(result.removed);
     }
   } catch (error) {
     logger.error('RETENTION_FAILED', { error: error instanceof Error ? error.message : String(error) });
@@ -219,14 +243,16 @@ async function runRetention(): Promise<void> {
     retentionRunning = false;
   }
 }
-application.onClipsChange(() => void runRetention());
+fleet.onClipsChange(() => void runRetention());
 const retentionTimer = setInterval(() => void runRetention(), config.storage.retentionIntervalSeconds * 1000);
 retentionTimer.unref();
 
 const server = createHttpServer({
-  application,
-  pressTrigger: () => virtualButton.press(),
-  previewImagePath,
+  application: fleet,
+  pressTrigger: () => {
+    void fleet.trigger(lanes.map((lane) => lane.cameraId));
+  },
+  previewImagePath: lanes[0]?.previewImagePath ?? path.join(config.paths.previewRoot, `${sessionName}.jpg`),
   clipsRoot: config.paths.clipsRoot,
   webRoot: process.env.WEB_ROOT
     ? path.resolve(process.env.WEB_ROOT)
@@ -239,57 +265,87 @@ const server = createHttpServer({
   equipmentStore,
   detectCameras: () => listCameraDevices(config.app.ffmpegPath),
   onEquipmentConfigChanged: (nextConfig) => {
-    application.setRecordingEnabled(
+    fleet.setRecordingEnabled(
       nextConfig.cameras.some((camera) => camera.isActive),
       'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
     );
-    void livePreview.sync(nextConfig).catch((error: unknown) => {
-      logger.error('PREVIEW_SYNC_FAILED', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
   },
-  getLiveView: async () => ({ cards: await livePreview.snapshot(await equipmentStore.load()) }),
+  getLiveView: async () => {
+    const catalog = await equipmentStore.load();
+    const described = buildBoundCameraCards(catalog);
+    const cards =
+      described.length > 0
+        ? described
+        : lanes.map((lane) => ({
+            key: lane.cameraId,
+            cameraId: lane.cameraId,
+            deviceId: lane.deviceId,
+            title: lane.name,
+            buttonNames: [] as string[],
+            source: 'preview' as const,
+          }));
+
+    return {
+      cards: await Promise.all(
+        cards.map(async (card) => {
+          const lane = lanes.find((item) => item.cameraId === card.cameraId);
+          const frame = lane ? await readPreviewFrame(lane.previewImagePath) : {};
+          const laneStatus = lane?.application.getSnapshot().status;
+          const failed = laneStatus?.cameraStatus === 'error';
+          return {
+            ...card,
+            ...frame,
+            status: frame.imageDataUrl ? ('online' as const) : failed ? ('error' as const) : ('waiting' as const),
+            message: frame.imageDataUrl ? undefined : laneStatus?.lastMessage ?? 'Aguardando preview da câmera...',
+          };
+        }),
+      ),
+    };
+  },
   logger,
 });
 
 let shuttingDown = false;
-let applicationStarted = false;
-let retryTimer: NodeJS.Timeout | undefined;
 
-function scheduleCameraRetry(reason: string): void {
-  if (shuttingDown || retryTimer) {
+function scheduleLaneRetry(lane: RunningLane, reason: string): void {
+  if (shuttingDown || lane.retryTimer) {
     return;
   }
 
-  logger.warn('CAMERA_RETRY_SCHEDULED', { reason, delayMs: CAMERA_RETRY_DELAY_MS });
-  retryTimer = setTimeout(() => {
-    retryTimer = undefined;
-    void startCapture();
+  logger.warn('CAMERA_RETRY_SCHEDULED', { cameraId: lane.cameraId, reason, delayMs: CAMERA_RETRY_DELAY_MS });
+  lane.retryTimer = setTimeout(() => {
+    lane.retryTimer = undefined;
+    void startLane(lane);
   }, CAMERA_RETRY_DELAY_MS);
 }
 
-async function startCapture(): Promise<void> {
+async function startLane(lane: RunningLane): Promise<void> {
+  const firstStart = !lane.started;
+  lane.started = true;
   try {
-    if (applicationStarted) {
-      await camera.start();
-    } else {
-      await application.start();
-      applicationStarted = true;
+    if (firstStart) {
+      await lane.application.start();
+      return;
     }
+
+    await lane.camera.start();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('CAMERA_STARTUP_FAILED', { error: message });
-    scheduleCameraRetry(message);
+    logger.error('CAMERA_STARTUP_FAILED', { cameraId: lane.cameraId, error: message });
+    scheduleLaneRetry(lane, message);
   }
 }
 
-// ffmpeg exits when the camera is unplugged; keep trying so the device recovers without a reboot.
-camera.onStatusChange((status) => {
-  if (applicationStarted && (status === 'error' || status === 'offline')) {
-    scheduleCameraRetry(`camera ${status}`);
-  }
-});
+for (const lane of lanes) {
+  lane.camera.onStatusChange((status) => {
+    if (!lane.started || shuttingDown) {
+      return;
+    }
+    if (status === 'error' || status === 'offline') {
+      scheduleLaneRetry(lane, `camera ${status}`);
+    }
+  });
+}
 
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) {
@@ -298,15 +354,19 @@ async function shutdown(signal: string): Promise<void> {
 
   shuttingDown = true;
   logger.info('SHUTDOWN', { signal });
-  if (retryTimer) {
-    clearTimeout(retryTimer);
+  for (const lane of lanes) {
+    if (lane.retryTimer) {
+      clearTimeout(lane.retryTimer);
+    }
   }
 
   syncService?.stop();
   server.close();
   server.closeAllConnections();
-  await livePreview.stop().catch(() => undefined);
-  await application.stop().catch(() => undefined);
+  await gpioButton.stop().catch(() => undefined);
+  for (const lane of lanes) {
+    await lane.application.stop().catch(() => undefined);
+  }
   process.exit(0);
 }
 
@@ -315,13 +375,11 @@ process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
 const port = config.app.port ?? 3000;
 server.listen(port, config.app.host, () => {
-  logger.info('SERVER_LISTENING', { host: config.app.host, port });
-  void livePreview.sync(equipmentStore.loadSync()).catch((error: unknown) => {
-    logger.error('PREVIEW_SYNC_FAILED', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
-  void startCapture();
+  logger.info('SERVER_LISTENING', { host: config.app.host, port, cameras: lanes.map((lane) => lane.deviceId) });
+  void gpioButton.start();
+  for (const lane of lanes) {
+    void startLane(lane);
+  }
   void syncService?.start().catch((error: unknown) =>
     logger.error('SYNC_START_FAILED', { error: error instanceof Error ? error.message : String(error) }),
   );

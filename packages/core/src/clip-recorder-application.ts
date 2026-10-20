@@ -261,6 +261,12 @@ export class ClipRecorderApplication {
     }
 
     if (!this.computeCanTrigger()) {
+      this.dependencies.logger.info('TRIGGER_SKIPPED', {
+        cameraId: this.dependencies.camera.getCameraId(),
+        cameraStatus: this.status.cameraStatus,
+        processingStatus: this.status.processingStatus,
+        recordingEnabled: this.recordingEnabled,
+      });
       return;
     }
 
@@ -377,6 +383,7 @@ export class ClipRecorderApplication {
   }
 
   private createClipId(triggeredAt: Date): string {
-    return `clip-${triggeredAt.getTime()}`;
+    const cameraKey = this.dependencies.camera.getCameraId().replace(/[^a-zA-Z0-9]+/g, '');
+    return `clip-${triggeredAt.getTime()}-${cameraKey || 'camera'}`;
   }
 }

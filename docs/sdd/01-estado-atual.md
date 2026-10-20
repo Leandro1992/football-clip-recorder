@@ -43,10 +43,11 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 - A aba Gestão de equipamento persiste `runtime/equipment-config.json`: câmeras, botões e vínculos.
 - Na subida, câmera e botão principais nascem do `.env` se o arquivo ainda não existir.
 - Sem nenhuma câmera `isActive`, a gravação de clipe fica desligada. A captura FFmpeg da câmera configurada no ambiente continua o fluxo de start.
-- A pipeline que gera o clipe continua sendo uma câmera, a de `CAMERA_DEVICE` (ou autodetecção).
-- Na aba Live, essa câmera aparece sempre. Cada outra câmera ativa vinculada a um botão ativo (virtual ou GPIO) aparece no próprio cartão depois que a configuração é salva. O dispositivo extra abre um FFmpeg só de preview, sem segmentos e sem áudio. O mesmo dispositivo da gravação não é aberto de novo.
-- Câmera inativa, câmera sem vínculo ou vínculo só com botão inativo não entra na Live.
-- Botões GPIO novos no catálogo ainda só passam a disparar o lance depois de reiniciar o serviço. A visualização atualiza ao salvar.
+- A pipeline que gera o clipe é uma por câmera ativa vinculada a um botão ativo. Cada dispositivo é aberto uma vez, com segmentos e JPEG.
+- Um botão com várias câmeras gera um clipe de cada uma, e os clipes entram na fila de upload. Dois botões ativos no mesmo pino GPIO disparam a união dessas câmeras.
+- O microfone fica na primeira câmera vinculada. As outras gravam só vídeo.
+- Na aba Live, cada uma dessas câmeras tem o próprio cartão. A falha de uma não esconde as outras.
+- Botões GPIO novos e câmeras novas no catálogo passam a gravar depois de reiniciar o serviço. Mudar o vínculo de câmeras que já estão abertas vale no próximo aperto.
 
 ## Armazenamento
 
