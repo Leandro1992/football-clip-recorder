@@ -43,4 +43,4 @@ Eventos por segmento (1/s) ficam ocultos; use `LOG_VERBOSE=true` para depurar. O
 
 ## Segurança
 
-A UI não tem autenticação: use apenas em rede local confiável.
+A interface abre numa tela de login simples (usuário e senha). Sem sessão, a API responde 401. O padrão de desenvolvimento é `admin` / `admin`; troque `AUTH_USERNAME` e `AUTH_PASSWORD` no `.env`. A senha é única do equipamento, então mantenha o Pi numa rede local confiável.

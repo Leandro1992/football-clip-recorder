@@ -1,0 +1,23 @@
+---
+description: Contexto do produto Olho no lance e limites entre pacotes
+alwaysApply: true
+---
+
+# Olho no lance
+
+Hardware e software para registrar lances em partidas amadoras. Leia `AGENTS.md` e `docs/sdd/01-estado-atual.md` antes de mudar comportamento.
+
+- Nome de produto na UI: Olho no lance. Pacotes npm: `@football-clip-recorder/*`.
+- Negócio em `packages/core`, atrás das portas em `packages/core/src/interfaces.ts`.
+- Plataforma fica em `packages/camera`, `packages/hardware`, `packages/storage` e `apps/*`.
+- Configuração só via `loadConfig` em `packages/config`. Nova variável: `AppConfig`, parser e `.env.example`.
+- Captura, montagem do clipe e upload são etapas separadas. A câmera não bloqueia no upload.
+- UI e mensagens ao operador em português. Identificadores de código e eventos de log em inglês.
+
+```typescript
+// Ruim: ler env e falar com S3 dentro do core
+const bucket = process.env.AWS_S3_BUCKET;
+
+// Bom: core depende da porta
+await this.dependencies.clipStorage.upload(filePath, metadata);
+```

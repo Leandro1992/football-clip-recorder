@@ -30,6 +30,7 @@
 7. `ClipBuilder` concatenates the segments into a final MP4.
 8. `UploadQueue` sends the clip to the active storage provider.
 9. The UI receives status, preview, and clip-history updates through Electron IPC or, in the headless server, REST + Server-Sent Events.
+10. The Live tab also shows every other active camera linked to an active button. A different device gets its own preview-only FFmpeg process. Clip capture stays on the single configured camera.
 
 ## Non-blocking processing
 

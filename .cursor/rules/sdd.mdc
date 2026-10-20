@@ -1,0 +1,20 @@
+---
+description: Como usar o SDD ao especificar ou implementar uma evolução
+alwaysApply: true
+---
+
+# SDD
+
+Especificação viva em `docs/sdd/`. Fluxo em `docs/sdd/README.md`.
+
+- Evolução nova: copie `docs/sdd/evolucoes/_template.md` para `NNNN-slug.md` e atualize o índice.
+- Status `rascunho` descreve intenção. Implemente só com status `pronta` ou pedido explícito daquela evolução.
+- Não acrescente comportamento de produto que a spec não pede.
+- Ao concluir, marque `concluida` e atualize `docs/sdd/01-estado-atual.md` se a base mudou.
+- Decisão que restringe evoluções futuras: `docs/sdd/decisoes/NNNN-titulo.md` a partir do template.
+- Critério de aceite vira teste quando a regra é determinística (buffer, fila, retenção, config).
+
+```markdown
+<!-- Ruim: implementar direto a partir de uma ideia solta -->
+<!-- Bom: docs/sdd/evolucoes/0004-audio-por-quadra.md com status pronta -->
+```

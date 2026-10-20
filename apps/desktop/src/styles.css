@@ -41,11 +41,13 @@ body {
   border-color: #d1d9e6 #d1d9e6 #ffffff !important;
 }
 
-.table-dark {
-  --bs-table-bg: #f8fafc;
+.table {
+  --bs-table-bg: #ffffff;
   --bs-table-striped-bg: #f1f5f9;
   --bs-table-hover-bg: #e2e8f0;
   --bs-table-color: #0f172a;
+  --bs-table-striped-color: #0f172a;
+  --bs-table-hover-color: #0f172a;
   --bs-table-border-color: #d7deea;
 }
 
@@ -60,6 +62,14 @@ body {
 .preview-video {
   object-fit: cover;
   max-height: 560px;
+}
+
+.preview-frame-compact {
+  min-height: 240px;
+}
+
+.preview-frame-compact .preview-video {
+  max-height: 320px;
 }
 
 .brand-logo {

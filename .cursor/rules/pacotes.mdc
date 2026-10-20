@@ -1,0 +1,18 @@
+---
+description: Convenções TypeScript dos pacotes de domínio e adaptadores
+globs: packages/**/*.ts
+alwaysApply: false
+---
+
+# Pacotes
+
+- TypeScript strict, CommonJS, ES2022. Exporte o pacote por `src/index.ts`.
+- Teste ao lado da unidade (`video-buffer.test.ts`). Rode `npm test`.
+- Erros de configuração lançam `Error` com o nome da variável (`GPIO_BUTTON_PIN is required...`).
+- Log com `Logger`: `info` / `warn` / `error` e um nome de evento estável (`CLIP_BUILD_STARTED`). Payload é objeto raso, sem segredo.
+- Tempo de clipe usa `Date` nas portas. Duração de config é em segundos.
+- Arquivo de runtime entra em `config.paths` (`runtime/segments`, `runtime/clips`, `runtime/preview`, `runtime/temp`, `mock-s3`).
+
+```typescript
+logger.info('CLIP_BUILD_STARTED', { clipId, segmentCount: segments.length });
+```

@@ -1,3 +1,5 @@
+export * from './live-preview';
+export * from './preview-capture';
 export * from './device-list';
 export * from './device-list-linux';
 export * from './ffmpeg-path';

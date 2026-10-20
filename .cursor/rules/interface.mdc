@@ -1,0 +1,18 @@
+---
+description: UI React e API HTTP do operador de campo
+globs: apps/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Interface e servidor
+
+- A UI em `apps/desktop/src` fala só com `window.desktopApi` (`DesktopApi` em `electron/ipc-types.ts`).
+- No browser, `http-api.ts` implementa essa mesma API. Electron usa IPC. Mantenha os dois alinhados.
+- Rotas HTTP ficam em `apps/server/src/http-server.ts`. Rota nova exige sessão, como as demais `/api/*` autenticadas.
+- Texto visível em português. Status de domínio (`cameraStatus`, `storageStatus`) permanece o enum do core.
+- A gravação do clipe continua na câmera do `.env`. Câmera ativa vinculada a um botão ativo também aparece na aba Live; outro dispositivo ganha um FFmpeg só de preview.
+- Login padrão de desenvolvimento é `admin` / `admin`. Não grave senha em código nem em log.
+
+```typescript
+const clips = await window.desktopApi.getSnapshot();
+```

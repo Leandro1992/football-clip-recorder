@@ -46,6 +46,10 @@ AUDIO_DEVICE=Microfone (2- USB Audio)
 If `ENABLE_AUDIO=true` and `AUDIO_DEVICE` is empty, the first DirectShow audio device will be used.
 Use `AUDIO_GAIN_DB` to boost a quiet microphone and `AUDIO_DENOISE=true` to reduce noise.
 
+## Login
+
+A interface abre numa tela de login simples, antes das abas. Os campos começam com `admin` / `admin`, o padrão de `AUTH_USERNAME` e `AUTH_PASSWORD`. Credencial errada permanece na mesma tela. Sair encerra a sessão.
+
 ## Run the desktop app
 
 ```powershell
@@ -68,6 +72,6 @@ npm run test
 
 ## Notes
 
-- The renderer preview uses `navigator.mediaDevices.getUserMedia`.
+- The Live tab shows a JPEG preview of the recording camera and of each extra camera linked to an active button.
 - The rolling recording pipeline uses FFmpeg segment files for clip capture.
 - By default uploads go to `mock-s3/`; AWS is not contacted while `STORAGE_PROVIDER=mock`. Only the 5 most recent clips are kept in mock mode.

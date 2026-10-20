@@ -11,6 +11,7 @@ import {
 } from '@football-clip-recorder/core';
 import {
   listCameraDevices,
+  LivePreviewHub,
   resolveFfmpegPath,
   UsbCameraLinux,
   UsbCameraWindows,
@@ -142,6 +143,26 @@ const triggerButton = new CompositeTriggerButton(triggerSources, (error) => {
   });
 });
 
+function recordingDeviceId(): string | undefined {
+  const id = camera.getCameraId();
+  if (!id || id === 'unresolved-camera') {
+    return config.camera.deviceName;
+  }
+  return id;
+}
+
+const livePreview = new LivePreviewHub({
+  previewDirectory: config.paths.previewRoot,
+  recordingPreviewPath: previewImagePath,
+  resolveRecordingDeviceId: recordingDeviceId,
+  width: config.camera.width,
+  height: config.camera.height,
+  fps: config.camera.fps,
+  format: config.camera.format,
+  ffmpegPath: config.app.ffmpegPath,
+  logger,
+});
+
 const application = new ClipRecorderApplication({
   config,
   camera,
@@ -222,7 +243,13 @@ const server = createHttpServer({
       nextConfig.cameras.some((camera) => camera.isActive),
       'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
     );
+    void livePreview.sync(nextConfig).catch((error: unknown) => {
+      logger.error('PREVIEW_SYNC_FAILED', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   },
+  getLiveView: async () => ({ cards: await livePreview.snapshot(await equipmentStore.load()) }),
   logger,
 });
 
@@ -278,6 +305,7 @@ async function shutdown(signal: string): Promise<void> {
   syncService?.stop();
   server.close();
   server.closeAllConnections();
+  await livePreview.stop().catch(() => undefined);
   await application.stop().catch(() => undefined);
   process.exit(0);
 }
@@ -288,6 +316,11 @@ process.on('SIGTERM', () => void shutdown('SIGTERM'));
 const port = config.app.port ?? 3000;
 server.listen(port, config.app.host, () => {
   logger.info('SERVER_LISTENING', { host: config.app.host, port });
+  void livePreview.sync(equipmentStore.loadSync()).catch((error: unknown) => {
+    logger.error('PREVIEW_SYNC_FAILED', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
   void startCapture();
   void syncService?.start().catch((error: unknown) =>
     logger.error('SYNC_START_FAILED', { error: error instanceof Error ? error.message : String(error) }),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
 import type {
   AuthSession,
@@ -6,6 +6,7 @@ import type {
   EquipmentButton,
   EquipmentCamera,
   EquipmentConfig,
+  LivePreviewCard,
   PublicConfig,
   RecordingDeleteScope,
   RecordingFile,
@@ -96,7 +97,7 @@ export function App() {
 
   const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment'>('live');
   const [previewError, setPreviewError] = useState<string | undefined>(undefined);
-  const [previewSrc, setPreviewSrc] = useState<string | undefined>(undefined);
+  const [liveCards, setLiveCards] = useState<LivePreviewCard[]>([]);
   const [selectedRecordingIds, setSelectedRecordingIds] = useState<string[]>([]);
   const [bulkDeleteScope, setBulkDeleteScope] = useState<RecordingDeleteScope>('local');
 
@@ -106,8 +107,6 @@ export function App() {
   const [buttonTypeInput, setButtonTypeInput] = useState<'virtual' | 'gpio'>('virtual');
   const [buttonPinInput, setButtonPinInput] = useState('17');
   const [buttonChipInput, setButtonChipInput] = useState('gpiochip0');
-
-  const lastPreviewTimestampRef = useRef<number | undefined>(undefined);
 
   async function refreshRecordings(): Promise<void> {
     const nextRecordings = await window.desktopApi.getRecordings();
@@ -193,45 +192,36 @@ export function App() {
   }, [session.authenticated]);
 
   useEffect(() => {
-    if (!session.authenticated) {
+    if (!session.authenticated || activeTab !== 'live') {
       return;
     }
 
     let disposed = false;
-    async function refreshPreviewFrame(): Promise<void> {
+    async function refreshLiveView(): Promise<void> {
       try {
-        const frame = await window.desktopApi.getPreviewFrame();
+        const view = await window.desktopApi.getLiveView();
         if (disposed) {
           return;
         }
-
-        if (frame.imageDataUrl && frame.updatedAt !== lastPreviewTimestampRef.current) {
-          lastPreviewTimestampRef.current = frame.updatedAt;
-          setPreviewSrc(frame.imageDataUrl);
-          setPreviewError(undefined);
-          return;
-        }
-
-        if (!frame.imageDataUrl && status.cameraStatus === 'online') {
-          setPreviewError('Aguardando frames do pipeline da câmera...');
-        }
+        setLiveCards(view.cards);
+        setPreviewError(undefined);
       } catch (error) {
         if (!disposed) {
-          setPreviewError(error instanceof Error ? error.message : 'Falha ao obter preview da câmera');
+          setPreviewError(error instanceof Error ? error.message : 'Falha ao obter a visualização');
         }
       }
     }
 
-    void refreshPreviewFrame();
+    void refreshLiveView();
     const timer = window.setInterval(() => {
-      void refreshPreviewFrame();
+      void refreshLiveView();
     }, 1000);
 
     return () => {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [session.authenticated, status.cameraStatus]);
+  }, [session.authenticated, activeTab]);
 
   useEffect(() => {
     if (!session.authenticated || activeTab !== 'videos') {
@@ -422,7 +412,9 @@ export function App() {
   async function saveEquipmentConfig(): Promise<void> {
     const saved = await window.desktopApi.saveEquipmentConfig(equipmentConfig);
     setEquipmentConfig(saved);
-    setEquipmentMessage('Configuração salva. Reinicie o serviço para aplicar novos botões físicos.');
+    setEquipmentMessage(
+      'Configuração salva. Câmeras vinculadas aparecem na aba Live. Botões físicos novos valem depois de reiniciar o serviço.',
+    );
   }
 
   if (authLoading) {
@@ -537,19 +529,53 @@ export function App() {
       {activeTab === 'live' ? (
         <div className="row g-3">
           <div className="col-12 col-xl-8">
-            <div className="card h-100">
-              <div className="card-header">Câmera</div>
-              <div className="card-body">
-                <div className="preview-frame border rounded p-2 bg-black">
-                  {previewSrc ? (
-                    <img src={previewSrc} alt="Preview da câmera" className="preview-video w-100" />
-                  ) : (
-                    <div className="text-center py-5 text-secondary">
-                      {previewError ?? 'Aguardando preview da câmera...'}
-                    </div>
-                  )}
+            <div className="row g-3">
+              {previewError ? (
+                <div className="col-12">
+                  <div className="alert alert-danger mb-0">{previewError}</div>
                 </div>
-                <div className="d-grid mt-3">
+              ) : null}
+              {liveCards.length === 0 ? (
+                <div className="col-12">
+                  <div className="card">
+                    <div className="card-body text-secondary">Carregando visualização...</div>
+                  </div>
+                </div>
+              ) : (
+                liveCards.map((card) => (
+                  <div key={card.key} className={liveCards.length > 1 ? 'col-12 col-lg-6' : 'col-12'}>
+                    <div className="card h-100">
+                      <div className="card-header d-flex justify-content-between align-items-center gap-2">
+                        <strong>{card.title}</strong>
+                        {card.buttonNames.length > 0 ? (
+                          <span className="small text-secondary text-end">{card.buttonNames.join(', ')}</span>
+                        ) : null}
+                      </div>
+                      <div className="card-body">
+                        <div
+                          className={`preview-frame border rounded p-2 bg-black${
+                            liveCards.length > 1 ? ' preview-frame-compact' : ''
+                          }`}
+                        >
+                          {card.imageDataUrl ? (
+                            <img
+                              src={card.imageDataUrl}
+                              alt={`Preview de ${card.title}`}
+                              className="preview-video w-100"
+                            />
+                          ) : (
+                            <div className="text-center py-5 text-secondary">
+                              {card.message ?? 'Aguardando preview da câmera...'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div className="col-12">
+                <div className="d-grid">
                   <button
                     className="btn btn-success btn-lg"
                     disabled={!status.canTrigger}
@@ -640,7 +666,7 @@ export function App() {
               </div>
             </div>
             <div className="table-responsive">
-              <table className="table table-dark table-striped table-hover align-middle">
+              <table className="table table-striped table-hover align-middle">
                 <thead>
                   <tr>
                     <th style={{ width: '40px' }}>
@@ -973,6 +999,9 @@ export function App() {
             <div className="card">
               <div className="card-header"><strong>Vínculo botão ↔ câmeras</strong></div>
               <div className="card-body">
+                <p className="small text-secondary">
+                  Depois de salvar, cada câmera ativa ligada a um botão ativo aparece na aba Live.
+                </p>
                 {equipmentConfig.buttons.length === 0 ? (
                   <div className="text-secondary">Cadastre botões para criar os vínculos.</div>
                 ) : (

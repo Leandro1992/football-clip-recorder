@@ -2,6 +2,7 @@ import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata } from '@foot
 import type {
   DesktopApi,
   EquipmentConfig,
+  LivePreviewCard,
   PublicConfig,
   RecordingDeleteScope,
   RecordingFile,
@@ -42,6 +43,7 @@ export function createHttpApi(): DesktopApi {
     getPublicConfig: () => request<PublicConfig>('/api/config'),
     getSnapshot: () => request<ApplicationSnapshot>('/api/snapshot'),
     getPreviewFrame: () => request<{ imageDataUrl?: string; updatedAt?: number }>('/api/preview-frame'),
+    getLiveView: () => request<{ cards: LivePreviewCard[] }>('/api/live-view'),
     async triggerClip() {
       await request('/api/trigger', { method: 'POST' });
     },

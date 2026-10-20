@@ -63,6 +63,19 @@ export interface GpioValidationResult {
   message: string;
 }
 
+export interface LivePreviewCard {
+  key: string;
+  cameraId?: string;
+  deviceId?: string;
+  title: string;
+  buttonNames: string[];
+  source: 'recording' | 'preview';
+  imageDataUrl?: string;
+  updatedAt?: number;
+  status: 'offline' | 'starting' | 'online' | 'error' | 'waiting';
+  message?: string;
+}
+
 export interface DesktopApi {
   getAuthSession(): Promise<AuthSession>;
   login(username: string, password: string): Promise<AuthSession>;
@@ -70,6 +83,7 @@ export interface DesktopApi {
   getPublicConfig(): Promise<PublicConfig>;
   getSnapshot(): Promise<ApplicationSnapshot>;
   getPreviewFrame(): Promise<{ imageDataUrl?: string; updatedAt?: number }>;
+  getLiveView(): Promise<{ cards: LivePreviewCard[] }>;
   triggerClip(): Promise<void>;
   retryUpload(clipId: string): Promise<void>;
   getRecordings(): Promise<RecordingFile[]>;

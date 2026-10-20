@@ -21,6 +21,9 @@ const api: DesktopApi = {
   async getPreviewFrame() {
     return ipcRenderer.invoke('app:get-preview-frame');
   },
+  async getLiveView() {
+    return ipcRenderer.invoke('app:get-live-view');
+  },
   async triggerClip() {
     await ipcRenderer.invoke('app:trigger');
   },

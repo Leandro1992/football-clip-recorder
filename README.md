@@ -16,8 +16,12 @@ apps/desktop   UI React (+ Electron no Windows)
 apps/server    Servidor Node headless (HTTP + SSE) que serve a UI
 packages/      config, core, video, camera, hardware, storage
 deploy/        scripts e serviço systemd para o Raspberry Pi
-docs/          arquitetura e guias por plataforma
+docs/          arquitetura, guias por plataforma e SDD
 ```
+
+## Especificação
+
+O comportamento de base e as próximas evoluções ficam no [SDD](docs/sdd/README.md). Contexto para agentes de código: [AGENTS.md](AGENTS.md).
 
 ## Requisitos
 
@@ -116,6 +120,6 @@ npm test
 
 ## API do servidor
 
-`POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome` (suporta Range, `?download`), `GET /api/events` (SSE), `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
+`POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome` (suporta Range, `?download`), `GET /api/events` (SSE), `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
 
-> A interface web agora exige login. Troque `AUTH_USERNAME` e `AUTH_PASSWORD` no `.env` em produção.
+A interface abre numa tela de login simples (usuário e senha) antes das abas. Troque `AUTH_USERNAME` e `AUTH_PASSWORD` no `.env` em produção.

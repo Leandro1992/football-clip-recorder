@@ -4,7 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
-import type { CameraDeviceInfo } from '@football-clip-recorder/camera';
+import type { CameraDeviceInfo, LivePreviewCard } from '@football-clip-recorder/camera';
 import type { ApplicationStatus, ClipMetadata, ClipRecorderApplication, Logger } from '@football-clip-recorder/core';
 import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
@@ -26,6 +26,7 @@ export interface HttpServerOptions {
   equipmentStore: EquipmentStore;
   detectCameras: () => Promise<CameraDeviceInfo[]>;
   onEquipmentConfigChanged?: (config: EquipmentConfig) => void;
+  getLiveView: () => Promise<{ cards: LivePreviewCard[] }>;
   logger: Logger;
 }
 
@@ -369,6 +370,11 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
 
     if (method === 'GET' && pathname === '/api/preview-frame') {
       sendJson(response, 200, await getPreviewFrame());
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/live-view') {
+      sendJson(response, 200, await options.getLiveView());
       return;
     }
 

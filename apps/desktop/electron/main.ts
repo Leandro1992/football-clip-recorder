@@ -9,7 +9,7 @@ import {
   type ApplicationStatus,
   type ClipMetadata,
 } from '@football-clip-recorder/core';
-import { listCameraDevices, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
+import { listCameraDevices, LivePreviewHub, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
 import { VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
@@ -64,6 +64,34 @@ const clipRecorderApplication = new ClipRecorderApplication({
   logger,
 });
 let equipmentConfigCache: EquipmentConfig = { cameras: [], buttons: [], bindings: [] };
+
+function recordingDeviceId(): string | undefined {
+  const id = camera.getCameraId();
+  if (!id || id === 'unresolved-camera') {
+    return config.camera.deviceName;
+  }
+  return id;
+}
+
+const livePreview = new LivePreviewHub({
+  previewDirectory: config.paths.previewRoot,
+  recordingPreviewPath: previewImagePath,
+  resolveRecordingDeviceId: recordingDeviceId,
+  width: config.camera.width,
+  height: config.camera.height,
+  fps: config.camera.fps,
+  format: config.camera.format,
+  ffmpegPath: config.app.ffmpegPath,
+  logger,
+});
+
+function syncLivePreview(catalog: EquipmentConfig): void {
+  void livePreview.sync(catalog).catch((error: unknown) => {
+    logger.error('PREVIEW_SYNC_FAILED', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -149,6 +177,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('app:get-snapshot', () => {
     return clipRecorderApplication.getSnapshot();
+  });
+
+  ipcMain.handle('app:get-live-view', async () => {
+    return { cards: await livePreview.snapshot(equipmentConfigCache) };
   });
 
   ipcMain.handle('app:get-preview-frame', async () => {
@@ -250,6 +282,7 @@ function registerIpcHandlers(): void {
       normalized.cameras.some((camera) => camera.isActive),
       'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
     );
+    syncLivePreview(normalized);
     return normalized;
   });
 
@@ -283,6 +316,7 @@ app.whenReady().then(async () => {
     equipmentConfigCache.cameras.some((camera) => camera.isActive),
     'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
   );
+  syncLivePreview(equipmentConfigCache);
   registerIpcHandlers();
   await createWindow();
   void clipRecorderApplication.start().catch((error: unknown) => {
@@ -299,5 +333,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  void livePreview.stop();
   void clipRecorderApplication.stop();
 });
