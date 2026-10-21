@@ -1,4 +1,7 @@
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
+import type { HealthLevel, HostHealthReport } from '@football-clip-recorder/hardware';
+
+export type { HealthLevel, HostHealthReport };
 
 export interface RecordingFile {
   id: string;
@@ -88,6 +91,7 @@ export interface DesktopApi {
   getSnapshot(): Promise<ApplicationSnapshot>;
   getPreviewFrame(): Promise<{ imageDataUrl?: string; updatedAt?: number }>;
   getLiveView(): Promise<{ cards: LivePreviewCard[] }>;
+  getHostHealth(): Promise<HostHealthReport>;
   triggerClip(): Promise<void>;
   retryUpload(clipId: string): Promise<void>;
   getRecordings(): Promise<RecordingFile[]>;

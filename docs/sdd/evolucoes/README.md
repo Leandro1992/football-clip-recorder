@@ -8,5 +8,6 @@ Cada arquivo `NNNN-slug.md` é uma mudança de comportamento. O template é [_te
 | 0002 | Câmeras vinculadas na visualização | concluida | [0002-cameras-vinculadas-na-visualizacao.md](0002-cameras-vinculadas-na-visualizacao.md) |
 | 0003 | Um botão grava todas as câmeras vinculadas | concluida | [0003-botao-grava-cameras-vinculadas.md](0003-botao-grava-cameras-vinculadas.md) |
 | 0004 | Visualização mais leve | concluida | [0004-visualizacao-mais-leve.md](0004-visualizacao-mais-leve.md) |
+| 0005 | Saúde do hardware | concluida | [0005-saude-do-hardware.md](0005-saude-do-hardware.md) |
 
 Ao criar a primeira, substitua a linha acima. Mantenha a tabela ordenada pelo ID.

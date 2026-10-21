@@ -24,6 +24,9 @@ const api: DesktopApi = {
   async getLiveView() {
     return ipcRenderer.invoke('app:get-live-view');
   },
+  async getHostHealth() {
+    return ipcRenderer.invoke('app:get-host-health');
+  },
   async triggerClip() {
     await ipcRenderer.invoke('app:trigger');
   },

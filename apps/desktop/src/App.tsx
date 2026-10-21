@@ -6,11 +6,13 @@ import type {
   EquipmentButton,
   EquipmentCamera,
   EquipmentConfig,
+  HostHealthReport,
   LivePreviewCard,
   PublicConfig,
   RecordingDeleteScope,
   RecordingFile,
 } from '../electron/ipc-types';
+import { HealthPanel } from './HealthPanel';
 
 const defaultStatus: ApplicationStatus = {
   cameraStatus: 'offline',
@@ -99,7 +101,9 @@ export function App() {
   const [discoveredCameras, setDiscoveredCameras] = useState<DiscoveredCamera[]>([]);
   const [equipmentMessage, setEquipmentMessage] = useState<string | undefined>(undefined);
 
-  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment' | 'health'>('live');
+  const [hostHealth, setHostHealth] = useState<HostHealthReport | undefined>(undefined);
+  const [hostHealthError, setHostHealthError] = useState<string | undefined>(undefined);
   const [previewError, setPreviewError] = useState<string | undefined>(undefined);
   const [liveCards, setLiveCards] = useState<LivePreviewCard[]>([]);
   const [selectedRecordingIds, setSelectedRecordingIds] = useState<string[]>([]);
@@ -233,6 +237,44 @@ export function App() {
       window.clearInterval(timer);
     };
   }, [session.authenticated, activeTab, publicConfig.preview.intervalSeconds]);
+
+  useEffect(() => {
+    if (!session.authenticated || (activeTab !== 'live' && activeTab !== 'health')) {
+      return;
+    }
+
+    let disposed = false;
+    let refreshing = false;
+    async function refreshHealth(): Promise<void> {
+      if (refreshing) {
+        return;
+      }
+      refreshing = true;
+      try {
+        const report = await window.desktopApi.getHostHealth();
+        if (!disposed) {
+          setHostHealth(report);
+          setHostHealthError(undefined);
+        }
+      } catch (error) {
+        if (!disposed) {
+          setHostHealthError(error instanceof Error ? error.message : 'Falha ao ler a saúde do equipamento');
+        }
+      } finally {
+        refreshing = false;
+      }
+    }
+
+    void refreshHealth();
+    const timer = window.setInterval(() => {
+      void refreshHealth();
+    }, 5000);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [session.authenticated, activeTab]);
 
   useEffect(() => {
     if (!session.authenticated || activeTab !== 'videos') {
@@ -535,6 +577,14 @@ export function App() {
             Gestão de equipamento
           </button>
         </li>
+        <li className="nav-item">
+          <button
+            className={activeTab === 'health' ? 'nav-link active' : 'nav-link'}
+            onClick={() => setActiveTab('health')}
+          >
+            Saúde
+          </button>
+        </li>
       </ul>
 
       {activeTab === 'live' ? (
@@ -547,6 +597,13 @@ export function App() {
                   {publicConfig.preview.width} px. A gravação do lance continua na resolução da câmera.
                 </p>
               </div>
+              {hostHealth && hostHealth.level !== 'ok' ? (
+                <div className="col-12">
+                  <div className={`alert mb-0 ${hostHealth.level === 'critical' ? 'alert-danger' : 'alert-warning'}`}>
+                    {hostHealth.summary} Os números estão na aba Saúde.
+                  </div>
+                </div>
+              ) : null}
               {previewError ? (
                 <div className="col-12">
                   <div className="alert alert-danger mb-0">{previewError}</div>
@@ -755,6 +812,8 @@ export function App() {
           </div>
         </div>
       ) : null}
+
+      {activeTab === 'health' ? <HealthPanel report={hostHealth} error={hostHealthError} /> : null}
 
       {activeTab === 'equipment' ? (
         <div className="row g-3">

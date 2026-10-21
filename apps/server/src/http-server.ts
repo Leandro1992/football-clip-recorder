@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readPreviewFrame, type CameraDeviceInfo, type LivePreviewCard } from '@football-clip-recorder/camera';
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata, Logger } from '@football-clip-recorder/core';
+import type { HostHealthReport } from '@football-clip-recorder/hardware';
 import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
 export interface ManagedRecorder {
@@ -39,6 +40,7 @@ export interface HttpServerOptions {
   detectCameras: () => Promise<CameraDeviceInfo[]>;
   onEquipmentConfigChanged?: (config: EquipmentConfig) => void;
   getLiveView: () => Promise<{ cards: LivePreviewCard[] }>;
+  getHostHealth: () => Promise<HostHealthReport>;
   logger: Logger;
 }
 
@@ -374,6 +376,11 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
 
     if (method === 'GET' && pathname === '/api/live-view') {
       sendJson(response, 200, await options.getLiveView());
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/health') {
+      sendJson(response, 200, await options.getHostHealth());
       return;
     }
 

@@ -62,7 +62,9 @@ A interface abre numa tela de login simples: nome do produto, usuário, senha e 
 
 A aba Live mostra um cartão por câmera visível. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15). Lista de gravações com download, exclusão local/nuvem/ambos e retry de upload.
 
-API autenticada: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome`, `GET /api/events`, `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
+A aba Saúde mostra CPU, carga, memória, disco das gravações, temperatura e o limite de alimentação do Raspberry. Atualiza a cada 5 segundos. Na Live, um aviso aparece quando algum desses sinais passa do limite.
+
+API autenticada: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/health`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome`, `GET /api/events`, `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
 
 ## Documentos desencontrados
 

@@ -10,7 +10,7 @@ import {
   type ClipMetadata,
 } from '@football-clip-recorder/core';
 import { listCameraDevices, LivePreviewHub, readPreviewFrame, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
-import { VirtualButton } from '@football-clip-recorder/hardware';
+import { HostHealthMonitor, VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
 import type { EquipmentConfig } from './ipc-types';
@@ -54,6 +54,7 @@ const clipBuilder = new ClipBuilder({
 
 const triggerButton = new VirtualButton();
 const clipStorage = createClipStorage(config, logger);
+const hostHealth = new HostHealthMonitor(config.paths.runtimeRoot);
 const equipmentConfigPath = path.join(config.paths.runtimeRoot, 'equipment-config.json');
 let authenticated = false;
 
@@ -190,6 +191,8 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('app:get-preview-frame', async () => readPreviewFrame(previewImagePath));
+
+  ipcMain.handle('app:get-host-health', () => hostHealth.read());
 
   ipcMain.handle('app:trigger', async () => {
     triggerButton.press();
