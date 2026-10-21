@@ -187,7 +187,7 @@ export function assessHostHealth(sample: HostSample): HostHealthReport {
     problems.push(`temperatura em ${sample.temperatureCelsius} °C`);
   }
   if (power && power.level !== 'ok') {
-    problems.push(power.message);
+    problems.push(power.message.replace(/\.$/, ''));
   }
 
   const level = worstLevel([
