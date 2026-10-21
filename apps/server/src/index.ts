@@ -136,6 +136,9 @@ const lanes: RunningLane[] = recordingTargets.map((target, index) => {
     audioGainDb: config.camera.audioGainDb,
     audioDenoise: config.camera.audioDenoise,
     ffmpegPath: config.app.ffmpegPath,
+    outputFps: config.video.outputFps,
+    previewWidth: config.preview.width,
+    previewIntervalSeconds: config.preview.intervalSeconds,
     logger,
   });
   const application = new ClipRecorderApplication({
@@ -262,6 +265,7 @@ const server = createHttpServer({
     maxLocalBytes: config.storage.maxDiskBytes,
     maxCloudBytes: config.storage.maxCloudBytes,
   },
+  preview: config.preview,
   equipmentStore,
   detectCameras: () => listCameraDevices(config.app.ffmpegPath),
   onEquipmentConfigChanged: (nextConfig) => {

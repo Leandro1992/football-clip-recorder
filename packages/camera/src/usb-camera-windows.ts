@@ -20,7 +20,15 @@ export interface UsbCameraWindowsOptions {
   audioDenoise?: boolean;
   ffmpegPath?: string;
   pollIntervalMs?: number;
+  outputFps?: number;
+  previewWidth?: number;
+  previewIntervalSeconds?: number;
   logger: Logger;
+}
+
+/** Browser preview only. The recorded segment keeps the camera resolution. */
+export function buildPreviewVideoFilter(width: number, intervalSeconds: number): string {
+  return `fps=1/${intervalSeconds},scale=${width}:-1:flags=fast_bilinear`;
 }
 
 export function buildDirectShowInputArguments(options: {
@@ -84,6 +92,9 @@ export function buildCameraOutputArguments(options: {
   audioDenoise?: boolean;
   keyframeIntervalSeconds?: number;
   segmentStartNumber?: number;
+  outputFps?: number;
+  previewWidth?: number;
+  previewIntervalSeconds?: number;
 }): string[] {
   const audioArguments = options.includeAudio
     ? [
@@ -110,6 +121,8 @@ export function buildCameraOutputArguments(options: {
     '-map',
     '0:v',
     ...audioArguments,
+    '-r',
+    String(options.outputFps ?? 15),
     '-c:v',
     'libx264',
     '-preset',
@@ -130,7 +143,7 @@ export function buildCameraOutputArguments(options: {
     '-map',
     '0:v',
     '-vf',
-    'fps=1,scale=960:-1',
+    buildPreviewVideoFilter(options.previewWidth ?? 480, options.previewIntervalSeconds ?? 2),
     '-q:v',
     '5',
     '-update',
@@ -289,6 +302,9 @@ export class UsbCameraWindows implements SegmentingCamera {
       audioGainDb: this.options.audioGainDb,
       audioDenoise: this.options.audioDenoise,
       segmentStartNumber: this.sequence,
+      outputFps: this.options.outputFps,
+      previewWidth: this.options.previewWidth,
+      previewIntervalSeconds: this.options.previewIntervalSeconds,
     });
   }
 

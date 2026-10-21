@@ -179,17 +179,37 @@ export async function readPreviewFrame(filePath: string): Promise<{ imageDataUrl
   return readJpegDataUrl(filePath);
 }
 
+const lastCompletePreview = new Map<string, { imageDataUrl: string; updatedAt: number }>();
+
+export function isCompleteJpeg(file: Buffer): boolean {
+  return (
+    file.length >= 4 &&
+    file[0] === 0xff &&
+    file[1] === 0xd8 &&
+    file[file.length - 2] === 0xff &&
+    file[file.length - 1] === 0xd9
+  );
+}
+
 async function readJpegDataUrl(
   filePath: string,
 ): Promise<{ imageDataUrl?: string; updatedAt?: number }> {
   try {
-    const [file, stats] = await Promise.all([fs.readFile(filePath), fs.stat(filePath)]);
-    return {
+    const file = await fs.readFile(filePath);
+    if (!isCompleteJpeg(file)) {
+      return lastCompletePreview.get(filePath) ?? {};
+    }
+
+    const stats = await fs.stat(filePath);
+    const frame = {
       imageDataUrl: `data:image/jpeg;base64,${file.toString('base64')}`,
       updatedAt: stats.mtimeMs,
     };
+    lastCompletePreview.set(filePath, frame);
+    return frame;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      lastCompletePreview.delete(filePath);
       return {};
     }
     throw error;
@@ -205,6 +225,8 @@ export interface LivePreviewHubOptions {
   fps: number;
   format?: string;
   ffmpegPath?: string;
+  previewWidth?: number;
+  previewIntervalSeconds?: number;
   logger: Logger;
   platform?: NodeJS.Platform;
 }
@@ -244,6 +266,8 @@ export class LivePreviewHub {
         fps: this.options.fps,
         format: this.options.format,
         ffmpegPath: this.options.ffmpegPath,
+        previewWidth: this.options.previewWidth,
+        previewIntervalSeconds: this.options.previewIntervalSeconds,
         logger: this.options.logger,
       });
       this.capturers.set(cameraId, capturer);

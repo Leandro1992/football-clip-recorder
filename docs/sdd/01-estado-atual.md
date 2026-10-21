@@ -60,7 +60,7 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera as abas Live, Vídeos e Gestão de equipamento, mostra o usuário no topo e oferece Sair. Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
 
-A aba Live mostra um cartão por câmera visível, com JPEG atualizado cerca de uma vez por segundo (`GET /api/live-view`). Lista de gravações com download, exclusão local/nuvem/ambos e retry de upload.
+A aba Live mostra um cartão por câmera visível. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15). Lista de gravações com download, exclusão local/nuvem/ambos e retry de upload.
 
 API autenticada: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome`, `GET /api/events`, `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
 

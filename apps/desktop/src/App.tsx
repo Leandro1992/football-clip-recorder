@@ -26,6 +26,10 @@ const defaultConfig: PublicConfig = {
     maxLocalBytes: 10 * 1024 * 1024 * 1024,
     maxCloudBytes: 10 * 1024 * 1024 * 1024,
   },
+  preview: {
+    width: 480,
+    intervalSeconds: 2,
+  },
 };
 
 const defaultEquipmentConfig: EquipmentConfig = {
@@ -197,7 +201,12 @@ export function App() {
     }
 
     let disposed = false;
+    let refreshing = false;
     async function refreshLiveView(): Promise<void> {
+      if (refreshing) {
+        return;
+      }
+      refreshing = true;
       try {
         const view = await window.desktopApi.getLiveView();
         if (disposed) {
@@ -209,19 +218,21 @@ export function App() {
         if (!disposed) {
           setPreviewError(error instanceof Error ? error.message : 'Falha ao obter a visualização');
         }
+      } finally {
+        refreshing = false;
       }
     }
 
     void refreshLiveView();
     const timer = window.setInterval(() => {
       void refreshLiveView();
-    }, 1000);
+    }, publicConfig.preview.intervalSeconds * 1000);
 
     return () => {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [session.authenticated, activeTab]);
+  }, [session.authenticated, activeTab, publicConfig.preview.intervalSeconds]);
 
   useEffect(() => {
     if (!session.authenticated || activeTab !== 'videos') {
@@ -530,6 +541,12 @@ export function App() {
         <div className="row g-3">
           <div className="col-12 col-xl-8">
             <div className="row g-3">
+              <div className="col-12">
+                <p className="text-secondary small mb-0">
+                  A visualização atualiza a cada {publicConfig.preview.intervalSeconds} segundos, numa imagem de até{' '}
+                  {publicConfig.preview.width} px. A gravação do lance continua na resolução da câmera.
+                </p>
+              </div>
               {previewError ? (
                 <div className="col-12">
                   <div className="alert alert-danger mb-0">{previewError}</div>

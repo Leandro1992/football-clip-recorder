@@ -4,7 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
-import type { CameraDeviceInfo, LivePreviewCard } from '@football-clip-recorder/camera';
+import { readPreviewFrame, type CameraDeviceInfo, type LivePreviewCard } from '@football-clip-recorder/camera';
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata, Logger } from '@football-clip-recorder/core';
 import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
@@ -30,6 +30,10 @@ export interface HttpServerOptions {
   storage: {
     maxLocalBytes: number;
     maxCloudBytes: number;
+  };
+  preview: {
+    width: number;
+    intervalSeconds: number;
   };
   equipmentStore: EquipmentStore;
   detectCameras: () => Promise<CameraDeviceInfo[]>;
@@ -300,21 +304,7 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
   }
 
   async function getPreviewFrame(): Promise<{ imageDataUrl?: string; updatedAt?: number }> {
-    try {
-      const [file, stats] = await Promise.all([
-        fsPromises.readFile(options.previewImagePath),
-        fsPromises.stat(options.previewImagePath),
-      ]);
-      return {
-        imageDataUrl: `data:image/jpeg;base64,${file.toString('base64')}`,
-        updatedAt: stats.mtimeMs,
-      };
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return {};
-      }
-      throw error;
-    }
+    return readPreviewFrame(options.previewImagePath);
   }
 
   async function handleApi(
@@ -367,6 +357,7 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
           maxLocalBytes: options.storage.maxLocalBytes,
           maxCloudBytes: options.storage.maxCloudBytes,
         },
+        preview: options.preview,
       });
       return;
     }

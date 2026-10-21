@@ -9,7 +9,7 @@ import {
   type ApplicationStatus,
   type ClipMetadata,
 } from '@football-clip-recorder/core';
-import { listCameraDevices, LivePreviewHub, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
+import { listCameraDevices, LivePreviewHub, readPreviewFrame, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
 import { VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
@@ -36,6 +36,9 @@ const camera = new UsbCameraWindows({
   audioDeviceName: config.camera.audioDeviceName,
   enableAudio: config.camera.enableAudio,
   ffmpegPath: config.app.ffmpegPath,
+  outputFps: config.video.outputFps,
+  previewWidth: config.preview.width,
+  previewIntervalSeconds: config.preview.intervalSeconds,
   logger,
 });
 
@@ -82,6 +85,8 @@ const livePreview = new LivePreviewHub({
   fps: config.camera.fps,
   format: config.camera.format,
   ffmpegPath: config.app.ffmpegPath,
+  previewWidth: config.preview.width,
+  previewIntervalSeconds: config.preview.intervalSeconds,
   logger,
 });
 
@@ -173,6 +178,7 @@ function registerIpcHandlers(): void {
       maxLocalBytes: config.storage.maxDiskBytes,
       maxCloudBytes: config.storage.maxCloudBytes,
     },
+    preview: config.preview,
   }));
 
   ipcMain.handle('app:get-snapshot', () => {
@@ -183,28 +189,7 @@ function registerIpcHandlers(): void {
     return { cards: await livePreview.snapshot(equipmentConfigCache) };
   });
 
-  ipcMain.handle('app:get-preview-frame', async () => {
-    try {
-      const file = await fs.readFile(previewImagePath);
-      const stats = await fs.stat(previewImagePath);
-
-      return {
-        imageDataUrl: `data:image/jpeg;base64,${file.toString('base64')}`,
-        updatedAt: stats.mtimeMs,
-      };
-    } catch (error) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: string }).code === 'ENOENT'
-      ) {
-        return {};
-      }
-
-      throw error;
-    }
-  });
+  ipcMain.handle('app:get-preview-frame', async () => readPreviewFrame(previewImagePath));
 
   ipcMain.handle('app:trigger', async () => {
     triggerButton.press();

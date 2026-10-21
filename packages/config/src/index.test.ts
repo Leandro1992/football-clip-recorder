@@ -11,6 +11,8 @@ describe('loadConfig', () => {
     expect(config.storage.provider).toBe('mock');
     expect(config.video.bufferDurationSeconds).toBe(30);
     expect(config.camera.width).toBe(1920);
+    expect(config.video.outputFps).toBe(15);
+    expect(config.preview).toEqual({ width: 480, intervalSeconds: 2 });
     expect(config.camera.enableAudio).toBe(false);
     expect(config.app.ffmpegPath).toBeUndefined();
     expect(config.auth.username).toBe('admin');

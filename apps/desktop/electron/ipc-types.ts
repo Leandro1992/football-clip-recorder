@@ -21,6 +21,10 @@ export interface PublicConfig {
     maxLocalBytes: number;
     maxCloudBytes: number;
   };
+  preview: {
+    width: number;
+    intervalSeconds: number;
+  };
 }
 
 export type RecordingDeleteScope = 'local' | 'cloud' | 'both';

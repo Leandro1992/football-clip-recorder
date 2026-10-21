@@ -44,6 +44,11 @@ export interface AppConfig {
     bufferDurationSeconds: number;
     postEventDurationSeconds: number;
     segmentDurationSeconds: number;
+    outputFps: number;
+  };
+  preview: {
+    width: number;
+    intervalSeconds: number;
   };
   storage: {
     provider: StorageProvider;
@@ -219,6 +224,15 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
         env.SEGMENT_DURATION_SECONDS,
         1,
         'SEGMENT_DURATION_SECONDS',
+      ),
+      outputFps: parseRequiredPositiveInteger(env.VIDEO_OUTPUT_FPS, 15, 'VIDEO_OUTPUT_FPS'),
+    },
+    preview: {
+      width: parseRequiredPositiveInteger(env.PREVIEW_WIDTH, 480, 'PREVIEW_WIDTH'),
+      intervalSeconds: parseRequiredPositiveInteger(
+        env.PREVIEW_INTERVAL_SECONDS,
+        2,
+        'PREVIEW_INTERVAL_SECONDS',
       ),
     },
     storage: {

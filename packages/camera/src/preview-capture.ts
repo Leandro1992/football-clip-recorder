@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Logger } from '@football-clip-recorder/core';
 import { buildV4l2InputArguments } from './usb-camera-linux';
-import { buildDirectShowInputArguments } from './usb-camera-windows';
+import { buildDirectShowInputArguments, buildPreviewVideoFilter } from './usb-camera-windows';
 import { resolveFfmpegPath } from './ffmpeg-path';
 
 export interface PreviewCaptureOptions {
@@ -15,6 +15,8 @@ export interface PreviewCaptureOptions {
   fps: number;
   format?: string;
   ffmpegPath?: string;
+  previewWidth?: number;
+  previewIntervalSeconds?: number;
   logger: Logger;
   platform?: NodeJS.Platform;
 }
@@ -29,6 +31,8 @@ export function buildPreviewCaptureArguments(options: {
   fps: number;
   format?: string;
   previewImagePath: string;
+  previewWidth?: number;
+  previewIntervalSeconds?: number;
 }): string[] {
   const input =
     options.platform === 'win32'
@@ -54,7 +58,7 @@ export function buildPreviewCaptureArguments(options: {
     ...input,
     '-an',
     '-vf',
-    'fps=1,scale=960:-1',
+    buildPreviewVideoFilter(options.previewWidth ?? 480, options.previewIntervalSeconds ?? 2),
     '-q:v',
     '5',
     '-update',
@@ -104,6 +108,8 @@ export class PreviewCapture {
       fps: this.options.fps,
       format: this.options.format,
       previewImagePath: this.options.previewImagePath,
+      previewWidth: this.options.previewWidth,
+      previewIntervalSeconds: this.options.previewIntervalSeconds,
     });
 
     try {
