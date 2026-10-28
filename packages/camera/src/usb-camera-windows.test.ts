@@ -171,4 +171,23 @@ describe('buildDirectShowInputArguments', () => {
       'C:\\runtime\\preview\\current.jpg',
     ]);
   });
+
+  it('uses the Raspberry Pi hardware encoder without the software preset', () => {
+    const args = buildCameraOutputArguments({
+      segmentDurationSeconds: 1,
+      segmentPattern: '/tmp/segment_%06d.mp4',
+      previewImagePath: '/tmp/preview.jpg',
+      includeAudio: false,
+      outputFps: 15,
+      encoder: 'h264_v4l2m2m',
+      bitrateKbps: 4000,
+    });
+
+    expect(args).toContain('h264_v4l2m2m');
+    expect(args).toContain('4000k');
+    expect(args).toContain('-g');
+    expect(args).toContain('-an');
+    expect(args).not.toContain('ultrafast');
+    expect(args).not.toContain('aac');
+  });
 });

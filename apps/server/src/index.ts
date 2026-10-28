@@ -140,6 +140,8 @@ const lanes: RunningLane[] = recordingTargets.map((target, index) => {
     outputFps: config.video.outputFps,
     previewWidth: config.preview.width,
     previewIntervalSeconds: config.preview.intervalSeconds,
+    encoder: config.video.encoder,
+    bitrateKbps: config.video.bitrateKbps,
     logger,
   });
   const application = new ClipRecorderApplication({

@@ -23,6 +23,8 @@ export interface UsbCameraWindowsOptions {
   outputFps?: number;
   previewWidth?: number;
   previewIntervalSeconds?: number;
+  encoder?: 'libx264' | 'h264_v4l2m2m';
+  bitrateKbps?: number;
   logger: Logger;
 }
 
@@ -95,6 +97,8 @@ export function buildCameraOutputArguments(options: {
   outputFps?: number;
   previewWidth?: number;
   previewIntervalSeconds?: number;
+  encoder?: 'libx264' | 'h264_v4l2m2m';
+  bitrateKbps?: number;
 }): string[] {
   const audioArguments = options.includeAudio
     ? [
@@ -117,21 +121,21 @@ export function buildCameraOutputArguments(options: {
   const startNumberArguments =
     options.segmentStartNumber === undefined ? [] : ['-segment_start_number', String(options.segmentStartNumber)];
 
+  const outputFps = options.outputFps ?? 15;
+  const encoder = options.encoder ?? 'libx264';
+  const gop = outputFps * (options.keyframeIntervalSeconds ?? options.segmentDurationSeconds);
+  const videoCodecArguments =
+    encoder === 'h264_v4l2m2m'
+      ? ['-c:v', 'h264_v4l2m2m', '-b:v', `${options.bitrateKbps ?? 4000}k`, '-pix_fmt', 'yuv420p', '-g', String(gop)]
+      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-pix_fmt', 'yuv420p', ...keyframeArguments];
+
   return [
     '-map',
     '0:v',
     ...audioArguments,
     '-r',
-    String(options.outputFps ?? 15),
-    '-c:v',
-    'libx264',
-    '-preset',
-    'ultrafast',
-    '-tune',
-    'zerolatency',
-    '-pix_fmt',
-    'yuv420p',
-    ...keyframeArguments,
+    String(outputFps),
+    ...videoCodecArguments,
     '-f',
     'segment',
     '-segment_time',
@@ -305,6 +309,8 @@ export class UsbCameraWindows implements SegmentingCamera {
       outputFps: this.options.outputFps,
       previewWidth: this.options.previewWidth,
       previewIntervalSeconds: this.options.previewIntervalSeconds,
+      encoder: this.options.encoder,
+      bitrateKbps: this.options.bitrateKbps,
     });
   }
 

@@ -64,6 +64,8 @@ A aba Live mostra um cartão por câmera visível. O JPEG da visualização tem 
 
 A aba Saúde mostra CPU, carga, memória, disco das gravações, temperatura e o limite de alimentação do Raspberry. Atualiza a cada 5 segundos. Na Live, um aviso aparece quando algum desses sinais passa do limite.
 
+O clipe em H.264 pode ser codificado por `libx264` ou pelo codificador de hardware do Raspberry Pi (`h264_v4l2m2m`, `VIDEO_ENCODER`). O áudio é opcional (`ENABLE_AUDIO`); desligado, a câmera grava só vídeo.
+
 API autenticada: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/health`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome`, `GET /api/events`, `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
 
 ## Documentos desencontrados

@@ -76,6 +76,11 @@ export class UsbCameraLinux extends UsbCameraWindows {
       audioInputIndex: 1,
       keyframeIntervalSeconds: this.options.segmentDurationSeconds,
       segmentStartNumber: this.sequence,
+      outputFps: this.options.outputFps,
+      previewWidth: this.options.previewWidth,
+      previewIntervalSeconds: this.options.previewIntervalSeconds,
+      encoder: this.options.encoder,
+      bitrateKbps: this.options.bitrateKbps,
     });
   }
 

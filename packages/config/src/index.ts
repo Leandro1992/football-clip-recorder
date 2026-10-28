@@ -45,6 +45,8 @@ export interface AppConfig {
     postEventDurationSeconds: number;
     segmentDurationSeconds: number;
     outputFps: number;
+    encoder: 'libx264' | 'h264_v4l2m2m';
+    bitrateKbps: number;
   };
   preview: {
     width: number;
@@ -125,6 +127,14 @@ function parseOptionalBoolean(value: string | undefined, fallback: boolean): boo
   }
 
   throw new Error(`Invalid boolean value: ${value}`);
+}
+
+function parseVideoEncoder(value: string | undefined): 'libx264' | 'h264_v4l2m2m' {
+  const encoder = value?.trim() || 'libx264';
+  if (encoder !== 'libx264' && encoder !== 'h264_v4l2m2m') {
+    throw new Error(`Unsupported VIDEO_ENCODER: ${encoder}`);
+  }
+  return encoder;
 }
 
 export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
@@ -226,6 +236,8 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
         'SEGMENT_DURATION_SECONDS',
       ),
       outputFps: parseRequiredPositiveInteger(env.VIDEO_OUTPUT_FPS, 15, 'VIDEO_OUTPUT_FPS'),
+      encoder: parseVideoEncoder(env.VIDEO_ENCODER),
+      bitrateKbps: parseRequiredPositiveInteger(env.VIDEO_BITRATE_KBPS, 4000, 'VIDEO_BITRATE_KBPS'),
     },
     preview: {
       width: parseRequiredPositiveInteger(env.PREVIEW_WIDTH, 480, 'PREVIEW_WIDTH'),
