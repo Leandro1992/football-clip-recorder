@@ -40,11 +40,13 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 - Botão virtual da UI sempre pode disparar `POST /api/trigger`.
 - `BUTTON_PROVIDER=gpio` acrescenta `GpioButton` (pull-up, ativo em nível baixo, debounce). O doc de Pi registra que o botão físico ainda não foi ensaiado em hardware.
-- A aba Gestão de equipamento persiste `runtime/equipment-config.json`: câmeras, botões e vínculos.
-- Na subida, câmera e botão principais nascem do `.env` se o arquivo ainda não existir.
+- A aba Gestão de equipamento persiste `runtime/equipment-config.json`: quadras, e dentro da quadra em uso as câmeras, os botões e o vínculo de cada câmera.
+- Cada quadra tem id, nome e o destino Cloudflare (endereço, bucket, região, access key e secret). O secret não entra no log. Se a quadra não tiver Cloudflare completo, o envio usa o `.env`.
+- Na subida, a configuração antiga sem quadras é gravada como a quadra principal, com as câmeras e os botões que já existiam. Sem arquivo, câmera e botão principais nascem do `.env` nessa quadra e o arquivo é criado.
 - Sem nenhuma câmera `isActive`, a gravação de clipe fica desligada. A captura FFmpeg da câmera configurada no ambiente continua o fluxo de start.
 - A pipeline que gera o clipe é uma por câmera ativa vinculada a um botão ativo. Cada dispositivo é aberto uma vez, com segmentos e JPEG.
 - Um botão com várias câmeras gera um clipe de cada uma, e os clipes entram na fila de upload. Dois botões ativos no mesmo pino GPIO disparam a união dessas câmeras.
+- O arquivo do clipe começa com o nome da quadra, o nome da câmera e o horário local do registro. O envio usa o Cloudflare da quadra em que o clipe foi gravado.
 - O microfone fica na primeira câmera vinculada. As outras gravam só vídeo.
 - Na aba Live, cada uma dessas câmeras tem o próprio cartão. A falha de uma não esconde as outras.
 - Botões GPIO novos e câmeras novas no catálogo passam a gravar depois de reiniciar o serviço. Mudar o vínculo de câmeras que já estão abertas vale no próximo aperto.

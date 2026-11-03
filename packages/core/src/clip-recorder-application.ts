@@ -23,6 +23,8 @@ export interface ClipRecorderApplicationDependencies {
   clipBuilder: VideoClipBuilder;
   clipStorage: ClipStorage;
   logger: Logger;
+  courtId?: string;
+  clipName?: (triggeredAt: Date) => string;
 }
 
 export class ClipRecorderApplication {
@@ -278,7 +280,7 @@ export class ClipRecorderApplication {
     const targetEnd = new Date(
       triggeredAt.getTime() + config.video.postEventDurationSeconds * 1000,
     );
-    const clipId = this.createClipId(triggeredAt);
+    const clipId = this.dependencies.clipName?.(triggeredAt) ?? this.createClipId(triggeredAt);
 
     this.status.processingStatus = 'capturing-post-event';
     this.status.canTrigger = false;
@@ -319,6 +321,7 @@ export class ClipRecorderApplication {
         timestamp: triggeredAt.toISOString(),
         duration,
         cameraId: camera.getCameraId(),
+        courtId: this.dependencies.courtId,
         filePath: path.resolve(clipFilePath),
         storageStatus: 'pending',
       };

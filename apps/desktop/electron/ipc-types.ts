@@ -1,5 +1,13 @@
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
 import type {
+  Court,
+  CourtCloud,
+  EquipmentBinding,
+  EquipmentButton,
+  EquipmentCamera,
+  EquipmentConfig,
+} from '@football-clip-recorder/core';
+import type {
   HealthLevel,
   HostHealthReport,
   NetworkStatus,
@@ -50,33 +58,14 @@ export interface PublicConfig {
 
 export type RecordingDeleteScope = 'local' | 'cloud' | 'both';
 
-export interface EquipmentCamera {
-  id: string;
-  name: string;
-  deviceId: string;
-  isActive: boolean;
-}
-
-export interface EquipmentButton {
-  id: string;
-  name: string;
-  type: 'virtual' | 'gpio';
-  isActive: boolean;
-  gpioPin?: number;
-  gpioChip?: string;
-  activeLow?: boolean;
-}
-
-export interface EquipmentBinding {
-  buttonId: string;
-  cameraIds: string[];
-}
-
-export interface EquipmentConfig {
-  cameras: EquipmentCamera[];
-  buttons: EquipmentButton[];
-  bindings: EquipmentBinding[];
-}
+export type {
+  Court,
+  CourtCloud,
+  EquipmentBinding,
+  EquipmentButton,
+  EquipmentCamera,
+  EquipmentConfig,
+};
 
 export interface DiscoveredCamera {
   name: string;

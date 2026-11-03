@@ -5,9 +5,17 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readPreviewFrame, type CameraDeviceInfo, type LivePreviewCard } from '@football-clip-recorder/camera';
-import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata, Logger } from '@football-clip-recorder/core';
+import {
+  keepStoredCloudSecrets,
+  normalizeEquipmentConfig,
+  type ApplicationSnapshot,
+  type ApplicationStatus,
+  type ClipMetadata,
+  type EquipmentConfig,
+  type Logger,
+} from '@football-clip-recorder/core';
 import type { AppUpdate, HostHealthReport, VenueWifi } from '@football-clip-recorder/hardware';
-import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
+import type { EquipmentStore } from './equipment-store';
 
 export interface ManagedRecorder {
   getSnapshot(): ApplicationSnapshot;
@@ -139,28 +147,7 @@ function sanitizeEquipmentConfig(input: unknown): EquipmentConfig {
   if (!input || typeof input !== 'object') {
     throw new Error('Configuração inválida.');
   }
-  const candidate = input as Partial<EquipmentConfig>;
-  const cameras: EquipmentCamera[] = Array.isArray(candidate.cameras)
-    ? candidate.cameras
-        .filter((camera) => camera && typeof camera.id === 'string')
-        .map((camera) => ({
-          ...camera,
-          isActive: camera.isActive !== false,
-        }))
-    : [];
-  const buttons: EquipmentButton[] = Array.isArray(candidate.buttons)
-    ? candidate.buttons
-        .filter((button) => button && typeof button.id === 'string')
-        .map((button) => ({
-          ...button,
-          isActive: button.isActive !== false,
-        }))
-    : [];
-  const bindings = Array.isArray(candidate.bindings)
-    ? candidate.bindings.filter((binding) => binding && typeof binding.buttonId === 'string')
-    : [];
-
-  return { cameras, buttons, bindings };
+  return normalizeEquipmentConfig(input);
 }
 
 async function serveFile(
@@ -457,7 +444,7 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
 
     if (method === 'PUT' && pathname === '/api/equipment') {
       const body = await readJsonBody<EquipmentConfig>(request);
-      const nextConfig = sanitizeEquipmentConfig(body);
+      const nextConfig = keepStoredCloudSecrets(await options.equipmentStore.load(), sanitizeEquipmentConfig(body));
       await options.equipmentStore.save(nextConfig);
       options.onEquipmentConfigChanged?.(nextConfig);
       sendJson(response, 200, { ok: true, config: nextConfig });

@@ -4,16 +4,19 @@ import { execFile } from 'node:child_process';
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { loadConfig, ensureRuntimeDirectories } from '@football-clip-recorder/config';
 import {
+  activeCourtCatalog,
   ClipRecorderApplication,
   ConsoleLogger,
+  keepStoredCloudSecrets,
+  normalizeEquipmentConfig,
   type ApplicationStatus,
   type ClipMetadata,
+  type EquipmentConfig,
 } from '@football-clip-recorder/core';
 import { listCameraDevices, LivePreviewHub, readPreviewFrame, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
 import { AppUpdate, createAppUpdateRunner, createSudoWifiRunner, HostHealthMonitor, VenueWifi, VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
-import type { EquipmentConfig } from './ipc-types';
 
 const logger = new ConsoleLogger();
 const projectRoot = path.resolve(__dirname, '../../../..');
@@ -69,7 +72,7 @@ const clipRecorderApplication = new ClipRecorderApplication({
   clipStorage,
   logger,
 });
-let equipmentConfigCache: EquipmentConfig = { cameras: [], buttons: [], bindings: [] };
+let equipmentConfigCache: EquipmentConfig = normalizeEquipmentConfig({});
 
 function recordingDeviceId(): string | undefined {
   const id = camera.getCameraId();
@@ -94,7 +97,7 @@ const livePreview = new LivePreviewHub({
 });
 
 function syncLivePreview(catalog: EquipmentConfig): void {
-  void livePreview.sync(catalog).catch((error: unknown) => {
+  void livePreview.sync(activeCourtCatalog(catalog)).catch((error: unknown) => {
     logger.error('PREVIEW_SYNC_FAILED', {
       error: error instanceof Error ? error.message : String(error),
     });
@@ -102,22 +105,6 @@ function syncLivePreview(catalog: EquipmentConfig): void {
 }
 
 let mainWindow: BrowserWindow | undefined;
-
-function normalizeEquipmentConfig(input: unknown): EquipmentConfig {
-  if (!input || typeof input !== 'object') {
-    return { cameras: [], buttons: [], bindings: [] };
-  }
-  const candidate = input as Partial<EquipmentConfig>;
-  return {
-    cameras: Array.isArray(candidate.cameras)
-      ? candidate.cameras.map((camera) => ({ ...camera, isActive: camera.isActive !== false }))
-      : [],
-    buttons: Array.isArray(candidate.buttons)
-      ? candidate.buttons.map((button) => ({ ...button, isActive: button.isActive !== false }))
-      : [],
-    bindings: Array.isArray(candidate.bindings) ? candidate.bindings : [],
-  };
-}
 
 function sendToMainWindow(channel: 'app:status' | 'app:clips', payload: ApplicationStatus | ClipMetadata[]): void {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
@@ -189,7 +176,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('app:get-live-view', async () => {
-    return { cards: await livePreview.snapshot(equipmentConfigCache) };
+    return { cards: await livePreview.snapshot(activeCourtCatalog(equipmentConfigCache)) };
   });
 
   ipcMain.handle('app:get-preview-frame', async () => readPreviewFrame(previewImagePath));
@@ -260,16 +247,16 @@ function registerIpcHandlers(): void {
       equipmentConfigCache = normalizeEquipmentConfig(JSON.parse(await fs.readFile(equipmentConfigPath, 'utf8')));
       return equipmentConfigCache;
     } catch {
-      return { cameras: [], buttons: [], bindings: [] };
+      return normalizeEquipmentConfig({});
     }
   });
 
   ipcMain.handle('app:save-equipment-config', async (_event, equipmentConfig: EquipmentConfig) => {
-    const normalized = normalizeEquipmentConfig(equipmentConfig);
+    const normalized = keepStoredCloudSecrets(equipmentConfigCache, normalizeEquipmentConfig(equipmentConfig));
     await fs.writeFile(equipmentConfigPath, JSON.stringify(normalized, null, 2));
     equipmentConfigCache = normalized;
     clipRecorderApplication.setRecordingEnabled(
-      normalized.cameras.some((camera) => camera.isActive),
+      activeCourtCatalog(normalized).cameras.some((camera) => camera.isActive),
       'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
     );
     syncLivePreview(normalized);
@@ -311,10 +298,10 @@ app.whenReady().then(async () => {
   try {
     equipmentConfigCache = normalizeEquipmentConfig(JSON.parse(await fs.readFile(equipmentConfigPath, 'utf8')));
   } catch {
-    equipmentConfigCache = { cameras: [{ id: 'default-camera', name: 'Camera', deviceId: 'default', isActive: true }], buttons: [], bindings: [] };
+    equipmentConfigCache = normalizeEquipmentConfig({});
   }
   clipRecorderApplication.setRecordingEnabled(
-    equipmentConfigCache.cameras.some((camera) => camera.isActive),
+    activeCourtCatalog(equipmentConfigCache).cameras.some((camera) => camera.isActive),
     'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
   );
   syncLivePreview(equipmentConfigCache);

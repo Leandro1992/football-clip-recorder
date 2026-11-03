@@ -16,3 +16,4 @@
 | Operador | Pessoa na quadra usando a interface ou o botão físico |
 | Rede do aparelho | Wi-Fi criado pelo Raspberry para o celular abrir a interface em `http://192.168.4.1` |
 | Rede da quadra | Wi-Fi do local. O aparelho usa essa rede para sincronizar os clipes |
+| Quadra | Lugar onde o aparelho portátil está gravando. Tem câmeras, botões e o Cloudflare dos vídeos |

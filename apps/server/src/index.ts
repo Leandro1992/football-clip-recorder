@@ -2,13 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, ensureRuntimeDirectories } from '@football-clip-recorder/config';
 import {
+  activeCourt,
+  activeCourtCatalog,
+  buildClipFileName,
   cameraIdsForGpioPin,
   ClipRecorderApplication,
   ConnectivityMonitor,
   ConsoleLogger,
+  EMPTY_COURT_CLOUD,
   RecordingFleet,
   StorageRetention,
   SyncService,
+  type EquipmentConfig,
   type TriggerButton,
 } from '@football-clip-recorder/core';
 import {
@@ -30,10 +35,10 @@ import {
   VenueWifi,
   VirtualButton,
 } from '@football-clip-recorder/hardware';
-import { createClipStorage } from '@football-clip-recorder/storage';
+import { createClipStorage, createCourtClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
 import { createHttpServer } from './http-server';
-import { EquipmentStore, type EquipmentConfig } from './equipment-store';
+import { EquipmentStore } from './equipment-store';
 
 const CAMERA_RETRY_DELAY_MS = 5000;
 
@@ -43,36 +48,44 @@ const config = loadConfig({ projectRoot });
 ensureRuntimeDirectories(config);
 
 const seededEquipmentConfig: EquipmentConfig = {
-  cameras: [
+  activeCourtId: 'quadra-principal',
+  courts: [
     {
-      id: config.equipment.mainCameraId,
-      name: config.equipment.mainCameraName,
-      deviceId: config.camera.deviceName || '/dev/video0',
-      isActive: true,
-    },
-  ],
-  buttons: [
-    config.button.provider === 'gpio' && typeof config.button.gpioPin === 'number'
-      ? {
-          id: config.equipment.mainButtonId,
-          name: config.equipment.mainButtonName,
-          type: 'gpio',
-          isActive: true,
-          gpioPin: config.button.gpioPin,
-          gpioChip: config.button.gpioChip,
-          activeLow: config.button.activeLow,
-        }
-      : {
-          id: config.equipment.mainButtonId,
-          name: config.equipment.mainButtonName,
-          type: 'virtual',
+      id: 'quadra-principal',
+      name: 'Quadra principal',
+      cloud: { ...EMPTY_COURT_CLOUD },
+      cameras: [
+        {
+          id: config.equipment.mainCameraId,
+          name: config.equipment.mainCameraName,
+          deviceId: config.camera.deviceName || '/dev/video0',
           isActive: true,
         },
-  ],
-  bindings: [
-    {
-      buttonId: config.equipment.mainButtonId,
-      cameraIds: [config.equipment.mainCameraId],
+      ],
+      buttons: [
+        config.button.provider === 'gpio' && typeof config.button.gpioPin === 'number'
+          ? {
+              id: config.equipment.mainButtonId,
+              name: config.equipment.mainButtonName,
+              type: 'gpio' as const,
+              isActive: true,
+              gpioPin: config.button.gpioPin,
+              gpioChip: config.button.gpioChip,
+              activeLow: config.button.activeLow,
+            }
+          : {
+              id: config.equipment.mainButtonId,
+              name: config.equipment.mainButtonName,
+              type: 'virtual' as const,
+              isActive: true,
+            },
+      ],
+      bindings: [
+        {
+          buttonId: config.equipment.mainButtonId,
+          cameraIds: [config.equipment.mainCameraId],
+        },
+      ],
     },
   ],
 };
@@ -82,6 +95,8 @@ const hostHealth = new HostHealthMonitor(config.paths.runtimeRoot);
 const venueWifi = new VenueWifi(createSudoWifiRunner());
 const appUpdate = new AppUpdate(createAppUpdateRunner(projectRoot));
 const equipmentConfig = equipmentStore.loadSync();
+const courtCatalog = activeCourtCatalog(equipmentConfig);
+const currentCourt = activeCourt(equipmentConfig);
 
 for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
   for (const entry of fs.readdirSync(root)) {
@@ -93,7 +108,7 @@ for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
 
 const sessionName = `session-${new Date().toISOString().replaceAll(':', '-')}`;
 const CameraClass = process.platform === 'win32' ? UsbCameraWindows : UsbCameraLinux;
-const linkedCameras = selectLinkedCameras(equipmentConfig);
+const linkedCameras = selectLinkedCameras(courtCatalog);
 const recordingTargets =
   linkedCameras.length > 0
     ? linkedCameras.map((item) => ({
@@ -109,7 +124,12 @@ const recordingTargets =
         },
       ];
 
-const clipStorage = createClipStorage(config, logger);
+const clipStorage = createCourtClipStorage(
+  createClipStorage(config, logger),
+  () => equipmentStore.loadSync().courts,
+  config.storage.maxCloudBytes,
+  logger,
+);
 const clipBuilder = new ClipBuilder({
   tempDirectory: config.paths.tempRoot,
   ffmpegPath: config.app.ffmpegPath ?? resolveFfmpegPath(),
@@ -163,6 +183,14 @@ const lanes: RunningLane[] = recordingTargets.map((target, index) => {
     clipBuilder,
     clipStorage,
     logger,
+    courtId: currentCourt.id,
+    clipName: (triggeredAt) =>
+      buildClipFileName({
+        courtName: currentCourt.name,
+        cameraName: target.name,
+        courtId: currentCourt.id,
+        triggeredAt,
+      }),
   });
 
   return {
@@ -181,13 +209,13 @@ const fleet = new RecordingFleet(
   logger,
 );
 fleet.setRecordingEnabled(
-  equipmentConfig.cameras.some((camera) => camera.isActive),
+  courtCatalog.cameras.some((camera) => camera.isActive),
   'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
 );
 
 const gpioSources: TriggerButton[] = [];
 const seenPins = new Set<string>();
-for (const button of equipmentConfig.buttons) {
+for (const button of courtCatalog.buttons) {
   if (button.type !== 'gpio' || !button.isActive || typeof button.gpioPin !== 'number') {
     continue;
   }
@@ -208,7 +236,7 @@ for (const button of equipmentConfig.buttons) {
     logger,
   });
   gpio.onPress(() => {
-    const cameraIds = cameraIdsForGpioPin(equipmentStore.loadSync(), pin, chip);
+    const cameraIds = cameraIdsForGpioPin(activeCourtCatalog(equipmentStore.loadSync()), pin, chip);
     logger.info('GPIO_TRIGGER', { pin, chip, cameraIds });
     void fleet.trigger(cameraIds);
   });
@@ -283,8 +311,9 @@ const server = createHttpServer({
   equipmentStore,
   detectCameras: () => listCameraDevices(config.app.ffmpegPath),
   onEquipmentConfigChanged: (nextConfig) => {
+    const catalog = activeCourtCatalog(nextConfig);
     fleet.setRecordingEnabled(
-      nextConfig.cameras.some((camera) => camera.isActive),
+      catalog.cameras.some((camera) => camera.isActive),
       'Nenhuma câmera ativa. Ative ao menos uma câmera para gravar.',
     );
   },
@@ -293,7 +322,7 @@ const server = createHttpServer({
   appUpdate,
   getLiveView: async () => {
     const catalog = await equipmentStore.load();
-    const described = buildBoundCameraCards(catalog);
+    const described = buildBoundCameraCards(activeCourtCatalog(catalog));
     const cards =
       described.length > 0
         ? described

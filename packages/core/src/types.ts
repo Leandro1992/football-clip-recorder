@@ -18,6 +18,7 @@ export interface ClipMetadata {
   timestamp: string;
   duration: number;
   cameraId: string;
+  courtId?: string;
   filePath: string;
   storageStatus: ClipStorageStatus;
   uploadedUrl?: string;

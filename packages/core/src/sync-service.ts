@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { ConnectivityMonitor } from './connectivity-monitor';
 import type { ClipMetadata } from './types';
+import { courtIdFromClipName } from './courts';
 import type { Logger } from './interfaces';
 
 export interface SyncControlledRecorder {
@@ -88,6 +89,7 @@ export class SyncService {
         timestamp: stat.mtime.toISOString(),
         duration: 0,
         cameraId: 'unknown',
+        courtId: courtIdFromClipName(entry.name),
         filePath,
         storageStatus: synced ? 'uploaded' : 'pending',
         uploadedUrl: synced?.uploadedUrl,

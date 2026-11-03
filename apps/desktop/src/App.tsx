@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
+import { activeCourt, createCourt, mapActiveCourt, type CourtCloud } from '../../../packages/core/src/courts';
 import type {
   AuthSession,
   DiscoveredCamera,
@@ -37,9 +38,8 @@ const defaultConfig: PublicConfig = {
 };
 
 const defaultEquipmentConfig: EquipmentConfig = {
-  cameras: [],
-  buttons: [],
-  bindings: [],
+  activeCourtId: 'quadra-principal',
+  courts: [createCourt('quadra-principal', 'Quadra principal')],
 };
 const PRODUCT_NAME = 'Olho no lance';
 const PRODUCT_TAGLINE = 'Registro inteligente de lances';
@@ -114,6 +114,7 @@ export function App() {
   const [cameraNameInput, setCameraNameInput] = useState('');
   const [cameraDeviceInput, setCameraDeviceInput] = useState('');
   const [buttonNameInput, setButtonNameInput] = useState('');
+  const [courtNameInput, setCourtNameInput] = useState('');
   const [buttonTypeInput, setButtonTypeInput] = useState<'virtual' | 'gpio'>('virtual');
   const [buttonPinInput, setButtonPinInput] = useState('17');
   const [buttonChipInput, setButtonChipInput] = useState('gpiochip0');
@@ -355,10 +356,12 @@ export function App() {
       deviceId: cameraDeviceInput.trim(),
       isActive: true,
     };
-    setEquipmentConfig((current) => ({
-      ...current,
-      cameras: [...current.cameras, camera],
-    }));
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        cameras: [...court.cameras, camera],
+      })),
+    );
     setCameraNameInput('');
     setCameraDeviceInput('');
     setEquipmentMessage('Câmera adicionada à configuração.');
@@ -366,14 +369,15 @@ export function App() {
 
   function addDetectedCamera(camera: DiscoveredCamera): void {
     setEquipmentConfig((current) => {
-      const alreadyExists = current.cameras.some((item) => item.deviceId === camera.deviceId);
+      const court = activeCourt(current);
+      const alreadyExists = court.cameras.some((item) => item.deviceId === camera.deviceId);
       if (alreadyExists) {
         return current;
       }
-      return {
-        ...current,
-        cameras: [...current.cameras, { ...camera, id: makeId('camera'), isActive: true }],
-      };
+      return mapActiveCourt(current, (selected) => ({
+        ...selected,
+        cameras: [...selected.cameras, { ...camera, id: makeId('camera'), isActive: true }],
+      }));
     });
     setEquipmentMessage('Câmera detectada adicionada.');
   }
@@ -397,65 +401,77 @@ export function App() {
       return;
     }
 
-    setEquipmentConfig((current) => ({
-      ...current,
-      buttons: [...current.buttons, nextButton],
-      bindings: [...current.bindings, { buttonId: nextButton.id, cameraIds: [] }],
-    }));
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        buttons: [...court.buttons, nextButton],
+        bindings: [...court.bindings, { buttonId: nextButton.id, cameraIds: [] }],
+      })),
+    );
     setButtonNameInput('');
     setEquipmentMessage('Botão adicionado.');
   }
 
   function toggleBinding(buttonId: string, cameraId: string, selected: boolean): void {
-    setEquipmentConfig((current) => ({
-      ...current,
-      bindings: current.bindings.map((binding) => {
-        if (binding.buttonId !== buttonId) {
-          return binding;
-        }
-        const next = new Set(binding.cameraIds);
-        if (selected) {
-          next.add(cameraId);
-        } else {
-          next.delete(cameraId);
-        }
-        return { ...binding, cameraIds: [...next] };
-      }),
-    }));
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        bindings: court.bindings.map((binding) => {
+          if (binding.buttonId !== buttonId) {
+            return binding;
+          }
+          const next = new Set(binding.cameraIds);
+          if (selected) {
+            next.add(cameraId);
+          } else {
+            next.delete(cameraId);
+          }
+          return { ...binding, cameraIds: [...next] };
+        }),
+      })),
+    );
   }
 
   function updateCamera(cameraId: string, updater: (camera: EquipmentCamera) => EquipmentCamera): void {
-    setEquipmentConfig((current) => ({
-      ...current,
-      cameras: current.cameras.map((camera) => (camera.id === cameraId ? updater(camera) : camera)),
-    }));
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        cameras: court.cameras.map((camera) => (camera.id === cameraId ? updater(camera) : camera)),
+      })),
+    );
   }
 
   function removeCamera(cameraId: string): void {
-    setEquipmentConfig((current) => ({
-      ...current,
-      cameras: current.cameras.filter((camera) => camera.id !== cameraId),
-      bindings: current.bindings.map((binding) => ({
-        ...binding,
-        cameraIds: binding.cameraIds.filter((id) => id !== cameraId),
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        cameras: court.cameras.filter((camera) => camera.id !== cameraId),
+        bindings: court.bindings.map((binding) => ({
+          ...binding,
+          cameraIds: binding.cameraIds.filter((id) => id !== cameraId),
+        })),
       })),
-    }));
+    );
     setEquipmentMessage('Câmera removida.');
   }
 
   function updateButton(buttonId: string, updater: (button: EquipmentButton) => EquipmentButton): void {
-    setEquipmentConfig((current) => ({
-      ...current,
-      buttons: current.buttons.map((button) => (button.id === buttonId ? updater(button) : button)),
-    }));
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        buttons: court.buttons.map((button) => (button.id === buttonId ? updater(button) : button)),
+      })),
+    );
   }
 
   function removeButton(buttonId: string): void {
-    setEquipmentConfig((current) => ({
-      ...current,
-      buttons: current.buttons.filter((button) => button.id !== buttonId),
-      bindings: current.bindings.filter((binding) => binding.buttonId !== buttonId),
-    }));
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        buttons: court.buttons.filter((button) => button.id !== buttonId),
+        bindings: court.bindings.filter((binding) => binding.buttonId !== buttonId),
+      })),
+    );
     setEquipmentMessage('Botão removido.');
   }
 
@@ -464,13 +480,44 @@ export function App() {
     setEquipmentMessage(result.ok ? `GPIO válido: ${result.message}` : `Falha GPIO: ${result.message}`);
   }
 
+  function addCourt(): void {
+    const name = courtNameInput.trim();
+    if (!name) {
+      setEquipmentMessage('Informe o nome da quadra.');
+      return;
+    }
+    const court = createCourt(`q${Date.now().toString(36)}`, name);
+    setEquipmentConfig((current) => ({
+      ...current,
+      activeCourtId: court.id,
+      courts: [...current.courts, court],
+    }));
+    setCourtNameInput('');
+    setEquipmentMessage('Quadra adicionada. Salve para guardar.');
+  }
+
+  function updateCourtCloud(field: keyof CourtCloud, value: string): void {
+    setEquipmentConfig((current) =>
+      mapActiveCourt(current, (court) => ({
+        ...court,
+        cloud: { ...court.cloud, [field]: value },
+      })),
+    );
+  }
+
+  function renameActiveCourt(name: string): void {
+    setEquipmentConfig((current) => mapActiveCourt(current, (court) => ({ ...court, name })));
+  }
+
   async function saveEquipmentConfig(): Promise<void> {
     const saved = await window.desktopApi.saveEquipmentConfig(equipmentConfig);
     setEquipmentConfig(saved);
     setEquipmentMessage(
-      'Configuração salva. Um botão grava todas as câmeras vinculadas a ele. Uma câmera nova passa a gravar depois de reiniciar o serviço.',
+      'Configuração salva. A quadra em uso, uma câmera nova ou um botão novo passam a gravar depois de reiniciar o serviço. O nome do vídeo leva a quadra, a câmera e o horário.',
     );
   }
+
+  const selectedCourt = activeCourt(equipmentConfig);
 
   if (authLoading) {
     return (
@@ -840,7 +887,99 @@ export function App() {
 
       {activeTab === 'equipment' ? (
         <div className="row g-3">
-          {equipmentConfig.cameras.every((camera) => !camera.isActive) ? (
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header"><strong>Quadra em uso</strong></div>
+              <div className="card-body">
+                <div className="row g-2 align-items-end">
+                  <div className="col-md-4">
+                    <label className="form-label">Quadra</label>
+                    <select
+                      className="form-select"
+                      value={selectedCourt.id}
+                      onChange={(event) =>
+                        setEquipmentConfig((current) => ({ ...current, activeCourtId: event.target.value }))
+                      }
+                    >
+                      {equipmentConfig.courts.map((court) => (
+                        <option key={court.id} value={court.id}>
+                          {court.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label">Nome</label>
+                    <input
+                      className="form-control"
+                      value={selectedCourt.name}
+                      onChange={(event) => renameActiveCourt(event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <input
+                      className="form-control"
+                      placeholder="Nova quadra"
+                      value={courtNameInput}
+                      onChange={(event) => setCourtNameInput(event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-1 d-grid">
+                    <button className="btn btn-outline-primary" onClick={addCourt}>Adicionar</button>
+                  </div>
+                </div>
+                <p className="small text-secondary mt-3 mb-2">
+                  Os vídeos desta quadra saem com o nome da quadra, o da câmera e o horário. O envio usa o Cloudflare abaixo.
+                </p>
+                <div className="row g-2">
+                  <div className="col-md-6">
+                    <label className="form-label">Endereço Cloudflare</label>
+                    <input
+                      className="form-control"
+                      placeholder="https://conta.r2.cloudflarestorage.com"
+                      value={selectedCourt.cloud.endpoint}
+                      onChange={(event) => updateCourtCloud('endpoint', event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Bucket</label>
+                    <input
+                      className="form-control"
+                      value={selectedCourt.cloud.bucket}
+                      onChange={(event) => updateCourtCloud('bucket', event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Região</label>
+                    <input
+                      className="form-control"
+                      value={selectedCourt.cloud.region}
+                      onChange={(event) => updateCourtCloud('region', event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Access key</label>
+                    <input
+                      className="form-control"
+                      value={selectedCourt.cloud.accessKeyId}
+                      onChange={(event) => updateCourtCloud('accessKeyId', event.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Secret</label>
+                    <input
+                      className="form-control"
+                      type="password"
+                      placeholder="Em branco mantém o secret já salvo"
+                      value={selectedCourt.cloud.secretAccessKey}
+                      onChange={(event) => updateCourtCloud('secretAccessKey', event.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {selectedCourt.cameras.every((camera) => !camera.isActive) ? (
             <div className="col-12">
               <div className="alert alert-warning mb-0">
                 Nenhuma câmera ativa. A gravação fica bloqueada até você ativar ao menos uma câmera.
@@ -913,10 +1052,10 @@ export function App() {
               <div className="card-header"><strong>Câmeras cadastradas</strong></div>
               <div className="card-body p-0">
                 <ul className="list-group list-group-flush">
-                  {equipmentConfig.cameras.length === 0 ? (
+                  {selectedCourt.cameras.length === 0 ? (
                     <li className="list-group-item text-secondary">Nenhuma câmera cadastrada.</li>
                   ) : (
-                    equipmentConfig.cameras.map((camera) => (
+                    selectedCourt.cameras.map((camera) => (
                       <li key={camera.id} className="list-group-item">
                         <div className="row g-2 align-items-center">
                           <div className="col-md-4">
@@ -1038,10 +1177,10 @@ export function App() {
               <div className="card-header"><strong>Botões cadastrados</strong></div>
               <div className="card-body p-0">
                 <ul className="list-group list-group-flush">
-                  {equipmentConfig.buttons.length === 0 ? (
+                  {selectedCourt.buttons.length === 0 ? (
                     <li className="list-group-item text-secondary">Nenhum botão cadastrado.</li>
                   ) : (
-                    equipmentConfig.buttons.map((button) => (
+                    selectedCourt.buttons.map((button) => (
                       <li key={button.id} className="list-group-item">
                         <div className="row g-2 align-items-center">
                           <div className="col-md-4">
@@ -1101,11 +1240,11 @@ export function App() {
                 <p className="small text-secondary">
                   Depois de salvar, cada câmera ativa ligada a um botão ativo aparece na aba Live.
                 </p>
-                {equipmentConfig.buttons.length === 0 ? (
+                {selectedCourt.buttons.length === 0 ? (
                   <div className="text-secondary">Cadastre botões para criar os vínculos.</div>
                 ) : (
-                  equipmentConfig.buttons.map((button) => {
-                    const binding = equipmentConfig.bindings.find((entry) => entry.buttonId === button.id) ?? {
+                  selectedCourt.buttons.map((button) => {
+                    const binding = selectedCourt.bindings.find((entry) => entry.buttonId === button.id) ?? {
                       buttonId: button.id,
                       cameraIds: [],
                     };
@@ -1118,10 +1257,10 @@ export function App() {
                             : 'Virtual'}
                         </div>
                         <div className="d-flex flex-column gap-1">
-                          {equipmentConfig.cameras.filter((camera) => camera.isActive).length === 0 ? (
+                          {selectedCourt.cameras.filter((camera) => camera.isActive).length === 0 ? (
                             <span className="text-secondary">Nenhuma câmera para vincular.</span>
                           ) : (
-                            equipmentConfig.cameras
+                            selectedCourt.cameras
                               .filter((camera) => camera.isActive)
                               .map((camera) => (
                               <label key={camera.id} className="form-check">

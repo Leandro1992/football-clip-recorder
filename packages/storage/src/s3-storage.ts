@@ -49,6 +49,7 @@ export class S3Storage implements ClipStorage {
           clipId: metadata.id,
           cameraId: metadata.cameraId,
           timestamp: metadata.timestamp,
+          ...(metadata.courtId ? { courtId: metadata.courtId } : {}),
         },
       },
     }).done();
