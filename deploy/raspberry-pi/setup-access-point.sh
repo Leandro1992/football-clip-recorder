@@ -34,12 +34,12 @@ sudo chmod 440 /etc/sudoers.d/olho-rede
 sudo visudo -cf /etc/sudoers.d/olho-rede
 
 if [ "$(hostname)" = "raspberrypi" ]; then
-  sudo hostnamectl set-hostname olho-no-lance
   if grep -q '^127.0.1.1' /etc/hosts; then
     sudo sed -i 's/^127.0.1.1.*/127.0.1.1\tolho-no-lance/' /etc/hosts
   else
     echo '127.0.1.1 olho-no-lance' | sudo tee -a /etc/hosts >/dev/null
   fi
+  sudo hostnamectl set-hostname olho-no-lance
   sudo systemctl restart avahi-daemon || true
 fi
 

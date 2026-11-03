@@ -1,6 +1,6 @@
 # 0007 — Rede direta do aparelho
 
-- Status: em-andamento
+- Status: concluida
 - Data: 2026-11-03
 - Relacionada a: [0001-tela-de-login.md](0001-tela-de-login.md)
 
@@ -41,7 +41,7 @@ O celular entra na rede Wi-Fi do próprio aparelho, abre a interface e, na aba L
 - [x] A API autenticada `GET /api/network`, `GET /api/network/wifi` e `POST /api/network/wifi` existe. Sem sessão, responde 401.
 - [x] A aba Rede mostra a rede do aparelho e permite escolher a rede da quadra, em português.
 - [x] A aba Live diz que aquela imagem serve para apontar a câmera.
-- [ ] No Raspberry, a rede direta usa uma interface virtual e não substitui o cliente Wi-Fi da quadra. A porta 80 chega na interface.
+- [x] No Raspberry, a rede direta usa uma interface virtual e não substitui o cliente Wi-Fi da quadra. A porta 80 chega na interface.
 - [x] O manual de campo descreve o primeiro acesso sem monitor.
 
 ## Impacto
@@ -73,4 +73,4 @@ Teste Vitest do nome da rede, do MAC e da validação da senha. No equipamento: 
 
 ## Notas de implementação
 
-A rede do aparelho é a interface virtual `ap0`, criada por `deploy/raspberry-pi/olho-ap0-ensure.sh`. O `wlan0` continua cliente da quadra. A senha da rede do aparelho fica em `/etc/olho-no-lance/access-point.env`. A porta 80 é redirecionada para `APP_PORT` (3000). O serviço chama `sudo -n /usr/local/sbin/olho-rede`; a senha da quadra entra pelo stdin e o log só guarda o nome da rede e se a troca deu certo. Um timer de 60 segundos recria o `ap0` e, se o `wlan0` sumiu, recarrega o driver `brcmfmac`. O ensaio no equipamento ainda não foi feito: o protótipo está no Raspberry Pi OS Trixie, em que esse modo duplo do rádio já apresentou falha de firmware.
+A rede do aparelho é a interface virtual `ap0`, criada por `deploy/raspberry-pi/olho-ap0-ensure.sh`. O `wlan0` continua cliente da quadra. A senha da rede do aparelho fica em `/etc/olho-no-lance/access-point.env`. A porta 80 é redirecionada para `APP_PORT` (3000). O serviço chama `sudo -n /usr/local/sbin/olho-rede`; a senha da quadra entra pelo stdin e o log só guarda o nome da rede e se a troca deu certo. Um timer de 60 segundos recria o `ap0` e, se o `wlan0` sumiu, recarrega o driver `brcmfmac`. No ensaio de 2026-11-03, no Trixie, `wlan0` ficou na rede da quadra e `ap0` em `192.168.4.1`. A página abre na porta 80 a partir de outra máquina. Falta ver o rádio com um celular associado a essa rede.
