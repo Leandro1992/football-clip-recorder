@@ -12,5 +12,6 @@ Cada arquivo `NNNN-slug.md` é uma mudança de comportamento. O template é [_te
 | 0006 | Codificador de hardware sem áudio | concluida | [0006-codificador-de-hardware.md](0006-codificador-de-hardware.md) |
 | 0007 | Rede direta do aparelho | concluida | [0007-rede-direta-do-aparelho.md](0007-rede-direta-do-aparelho.md) |
 | 0008 | Atualização manual pela interface | concluida | [0008-atualizacao-manual.md](0008-atualizacao-manual.md) |
+| 0009 | Nome na rede do aparelho | concluida | [0009-nome-na-rede-do-aparelho.md](0009-nome-na-rede-do-aparelho.md) |
 
 Mantenha a tabela ordenada pelo ID.

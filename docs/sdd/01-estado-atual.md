@@ -62,7 +62,7 @@ A interface abre numa tela de login simples: nome do produto, usuário, senha e 
 
 A aba Live mostra um cartão por câmera visível. Essa imagem é a referência para apontar a câmera. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15). Lista de gravações com download, exclusão local/nuvem/ambos e retry de upload.
 
-A aba Rede, no Raspberry, mostra a rede Wi-Fi do aparelho (nome, senha e `http://192.168.4.1`) e permite escolher a rede da quadra. A senha da quadra não entra no log. No Windows a mesma aba informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
+A aba Rede, no Raspberry, mostra a rede Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. A senha da quadra não entra no log. No Windows a mesma aba informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
 
 A aba Controle de versão consulta a `main` só quando é aberta. O botão Atualizar aparece quando a `main` está à frente e o aparelho não tem commit local. A compilação e a reinicialização rodam fora do processo da câmera. No Windows a aba informa que a atualização pela interface existe no Raspberry.
 

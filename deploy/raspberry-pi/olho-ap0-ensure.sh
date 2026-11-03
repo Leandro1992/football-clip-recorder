@@ -77,6 +77,24 @@ create_ap0() {
   ip link set ap0 up
 }
 
+radio_stay_awake() {
+  iw dev ap0 set power_save off 2>/dev/null || true
+  iw dev wlan0 set power_save off 2>/dev/null || true
+}
+
+install_ap_dns() {
+  local file=/etc/NetworkManager/dnsmasq-shared.d/olho.conf
+  local desired="address=/olhonolance.admin/${AP_ADDRESS}"
+  mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+  if [ -f "$file" ] && grep -qxF "$desired" "$file"; then
+    return 0
+  fi
+  printf '%s\n' "$desired" > "$file"
+  if [ "$MODE" != "--interface-only" ] && ap_is_active; then
+    nmcli connection up olho-ap
+  fi
+}
+
 ssid_for() {
   local compact suffix
   compact="$(cat /sys/class/net/wlan0/address | tr -d ':' | tr '[:lower:]' '[:upper:]')"
@@ -106,6 +124,7 @@ upsert_profile() {
       ipv4.method shared \
       ipv4.addresses "${AP_ADDRESS}/24" \
       ipv4.never-default yes \
+      802-11-wireless.powersave disable \
       wifi-sec.key-mgmt wpa-psk \
       wifi-sec.proto rsn \
       wifi-sec.pairwise ccmp \
@@ -123,6 +142,7 @@ upsert_profile() {
       ipv4.method shared \
       ipv4.addresses "${AP_ADDRESS}/24" \
       ipv4.never-default yes \
+      802-11-wireless.powersave disable \
       wifi-sec.key-mgmt wpa-psk \
       wifi-sec.proto rsn \
       wifi-sec.pairwise ccmp \
@@ -139,6 +159,7 @@ fi
 
 wait_wlan
 create_ap0
+radio_stay_awake
 
 if [ "$MODE" = "--interface-only" ]; then
   exit 0
@@ -160,8 +181,12 @@ if [ "$MODE" = "--configure" ] || ! profile_exists; then
   upsert_profile "$SSID_VALUE" "$AP_MAC_VALUE"
 fi
 
+install_ap_dns
+radio_stay_awake
+
 if [ "$MODE" != "--configure" ] && ap_is_active; then
   exit 0
 fi
 
 nmcli connection up olho-ap
+radio_stay_awake

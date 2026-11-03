@@ -12,7 +12,7 @@ Registrar o lance de uma partida amadora no momento em que alguém aperta o bot�
 | Quem assiste depois | Abre os clipes gravados na própria interface ou, no futuro, num app de terceiros |
 | Quem instala | Configura câmera, áudio, botão GPIO e armazenamento no `.env` e na aba de equipamento |
 
-Ainda não há conta por jogador, por time ou por campeonato. O acesso da interface é um usuário e uma senha do equipamento (`AUTH_USERNAME` / `AUTH_PASSWORD`).
+Ainda não há conta por jogador, por time ou por campeonato. O acesso da interface é um usuário e uma senha do equipamento (`AUTH_USERNAME` / `AUTH_PASSWORD`), no padrão `admin` / `admin`. A rede Wi-Fi do aparelho usa a senha padrão `olhonolance`.
 
 ## Situação de uso
 
