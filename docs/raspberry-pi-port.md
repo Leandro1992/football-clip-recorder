@@ -7,7 +7,7 @@ A aplicação roda no Pi como um servidor Node headless (`apps/server`) que serv
 O celular não precisa achar o IP da quadra. O Raspberry publica a própria rede Wi-Fi.
 
 1. No celular, entre na rede **Olho no lance** seguida de quatro caracteres (o final do MAC do aparelho). A senha inicial é `olhonolance`. Ela também aparece na aba Rede, depois do login, e no arquivo `/etc/olho-no-lance/access-point.env`.
-2. Abra `http://olhonolance.admin`. Se o celular não resolver o nome, use `http://192.168.4.1`. O login inicial é `admin` / `admin`. Troque `AUTH_USERNAME` e `AUTH_PASSWORD` no `.env` do aparelho. No Android, DNS privado ligado a um provedor ignora esse nome.
+2. No navegador, abra `http://olhonolance.admin`. Se o nome não resolver, use `http://192.168.4.1`. O login inicial é `admin` / `admin`. Troque `AUTH_USERNAME` e `AUTH_PASSWORD` no `.env` do aparelho. No Android, DNS privado ligado a um provedor ignora esse nome. Se o sistema abrir uma tela de login da rede, feche e use o navegador; essa tela não é o acesso da interface.
 3. A aba **Live** é a imagem para apontar a câmera. Ajuste o enquadramento olhando essa imagem.
 4. A aba **Rede** escolhe o Wi-Fi da quadra. Os clipes sobem por essa rede. A rede do aparelho continua no ar.
 5. Se o celular avisar que a rede não tem internet, mantenha a conexão. Isso acontece quando a quadra ainda não está configurada. Com a quadra conectada, o celular também navega por ela.

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Encaminha a porta 80 para a interface, para o celular abrir http://192.168.4.1
+# Encaminha a porta 80 do próprio aparelho para a interface.
+# Não mexe no HTTP que o celular envia para a internet: senão o Android abre um login de rede e sai do Wi-Fi.
 set -euo pipefail
 
 ENV_FILE=/etc/olho-no-lance/access-point.env
@@ -26,7 +27,7 @@ nft -f - << EOF
 table ip olho {
   chain prerouting {
     type nat hook prerouting priority dstnat; policy accept;
-    tcp dport 80 redirect to :${APP_PORT}
+    tcp dport 80 fib daddr type local redirect to :${APP_PORT}
   }
 }
 EOF
