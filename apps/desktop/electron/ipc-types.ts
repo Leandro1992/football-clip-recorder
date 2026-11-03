@@ -1,7 +1,14 @@
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
-import type { HealthLevel, HostHealthReport } from '@football-clip-recorder/hardware';
+import type {
+  HealthLevel,
+  HostHealthReport,
+  NetworkStatus,
+  WifiConnectResult,
+  WifiNetwork,
+  WifiScan,
+} from '@football-clip-recorder/hardware';
 
-export type { HealthLevel, HostHealthReport };
+export type { HealthLevel, HostHealthReport, NetworkStatus, WifiConnectResult, WifiNetwork, WifiScan };
 
 export interface RecordingFile {
   id: string;
@@ -101,6 +108,9 @@ export interface DesktopApi {
   saveEquipmentConfig(config: EquipmentConfig): Promise<EquipmentConfig>;
   discoverCameras(): Promise<{ cameras: DiscoveredCamera[] }>;
   validateGpioPin(pin: number, chip?: string): Promise<GpioValidationResult>;
+  getNetworkStatus(): Promise<NetworkStatus>;
+  scanWifi(): Promise<WifiScan>;
+  connectVenueWifi(ssid: string, password: string): Promise<WifiConnectResult>;
   onStatusChange(callback: (status: ApplicationStatus) => void): () => void;
   onClipsChange(callback: (clips: ClipMetadata[]) => void): () => void;
 }

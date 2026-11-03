@@ -1,0 +1,13 @@
+[Unit]
+Description=Interface virtual da rede direta do Olho no lance
+DefaultDependencies=no
+Before=NetworkManager.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/olho-ap0-ensure --interface-only
+RemainAfterExit=yes
+
+[Install]
+WantedBy=NetworkManager.service

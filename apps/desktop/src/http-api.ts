@@ -4,9 +4,12 @@ import type {
   EquipmentConfig,
   HostHealthReport,
   LivePreviewCard,
+  NetworkStatus,
   PublicConfig,
   RecordingDeleteScope,
   RecordingFile,
+  WifiConnectResult,
+  WifiScan,
 } from '../electron/ipc-types';
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -75,6 +78,14 @@ export function createHttpApi(): DesktopApi {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin, chip }),
+      }),
+    getNetworkStatus: () => request<NetworkStatus>('/api/network'),
+    scanWifi: () => request<WifiScan>('/api/network/wifi'),
+    connectVenueWifi: (ssid: string, password: string) =>
+      request<WifiConnectResult>('/api/network/wifi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ssid, password }),
       }),
     onStatusChange: (callback: (status: ApplicationStatus) => void) => subscribe('status', callback),
     onClipsChange: (callback: (clips: ClipMetadata[]) => void) => subscribe('clips', callback),

@@ -13,6 +13,7 @@ import type {
   RecordingFile,
 } from '../electron/ipc-types';
 import { HealthPanel } from './HealthPanel';
+import { NetworkPanel } from './NetworkPanel';
 
 const defaultStatus: ApplicationStatus = {
   cameraStatus: 'offline',
@@ -101,7 +102,7 @@ export function App() {
   const [discoveredCameras, setDiscoveredCameras] = useState<DiscoveredCamera[]>([]);
   const [equipmentMessage, setEquipmentMessage] = useState<string | undefined>(undefined);
 
-  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment' | 'health'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment' | 'health' | 'network'>('live');
   const [hostHealth, setHostHealth] = useState<HostHealthReport | undefined>(undefined);
   const [hostHealthError, setHostHealthError] = useState<string | undefined>(undefined);
   const [previewError, setPreviewError] = useState<string | undefined>(undefined);
@@ -585,6 +586,14 @@ export function App() {
             Saúde
           </button>
         </li>
+        <li className="nav-item">
+          <button
+            className={activeTab === 'network' ? 'nav-link active' : 'nav-link'}
+            onClick={() => setActiveTab('network')}
+          >
+            Rede
+          </button>
+        </li>
       </ul>
 
       {activeTab === 'live' ? (
@@ -594,7 +603,8 @@ export function App() {
               <div className="col-12">
                 <p className="text-secondary small mb-0">
                   A visualização atualiza a cada {publicConfig.preview.intervalSeconds} segundos, numa imagem de até{' '}
-                  {publicConfig.preview.width} px. A gravação do lance continua na resolução da câmera.
+                  {publicConfig.preview.width} px. Use esta imagem para apontar a câmera. A gravação do lance continua na
+                  resolução da câmera.
                 </p>
               </div>
               {hostHealth && hostHealth.level !== 'ok' ? (
@@ -814,6 +824,8 @@ export function App() {
       ) : null}
 
       {activeTab === 'health' ? <HealthPanel report={hostHealth} error={hostHealthError} /> : null}
+
+      {activeTab === 'network' ? <NetworkPanel /> : null}
 
       {activeTab === 'equipment' ? (
         <div className="row g-3">

@@ -6,4 +6,4 @@ Copie [_template.md](_template.md) para `NNNN-titulo.md`.
 
 | ID | Decisão | Status | Data |
 | --- | --- | --- | --- |
-| — | Nenhuma decisão registrada além do que já está na arquitetura | — | — |
+| 0001 | A interface de campo abre pela rede do aparelho | aceita | 2026-11-03 |

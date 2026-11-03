@@ -20,7 +20,14 @@ import {
   UsbCameraLinux,
   UsbCameraWindows,
 } from '@football-clip-recorder/camera';
-import { CompositeTriggerButton, GpioButton, HostHealthMonitor, VirtualButton } from '@football-clip-recorder/hardware';
+import {
+  CompositeTriggerButton,
+  createSudoWifiRunner,
+  GpioButton,
+  HostHealthMonitor,
+  VenueWifi,
+  VirtualButton,
+} from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
 import { createHttpServer } from './http-server';
@@ -70,6 +77,7 @@ const seededEquipmentConfig: EquipmentConfig = {
 
 const equipmentStore = new EquipmentStore(config.paths.runtimeRoot, seededEquipmentConfig);
 const hostHealth = new HostHealthMonitor(config.paths.runtimeRoot);
+const venueWifi = new VenueWifi(createSudoWifiRunner());
 const equipmentConfig = equipmentStore.loadSync();
 
 for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
@@ -278,6 +286,7 @@ const server = createHttpServer({
     );
   },
   getHostHealth: () => hostHealth.read(),
+  venueWifi,
   getLiveView: async () => {
     const catalog = await equipmentStore.load();
     const described = buildBoundCameraCards(catalog);

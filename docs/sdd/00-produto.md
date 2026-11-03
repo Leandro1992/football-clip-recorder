@@ -17,13 +17,14 @@ Ainda não há conta por jogador, por time ou por campeonato. O acesso da interf
 ## Situação de uso
 
 - Quadra ou campo com câmera USB apontada para o jogo.
-- Botão físico perto de quem vê o lance, ou o botão da interface no celular/notebook na mesma rede.
+- O celular entra na rede Wi-Fi do próprio aparelho para ver a imagem e apontar a câmera. A rede da quadra serve para enviar os clipes.
+- Botão físico perto de quem vê o lance, ou o botão da interface.
 - Rede instável: o clipe nasce no disco e sobe quando a internet volta.
 - Equipamento alvo de produção: Raspberry Pi com servidor headless. Windows com Electron serve para desenvolver.
 
 ## O que o produto já cobre
 
-Descrito em [01-estado-atual.md](01-estado-atual.md): buffer contínuo, clipe sob gatilho, tela de login, visualização das câmeras vinculadas a um botão, lista de gravações, cadastro de equipamento, retenção de disco e fila de sincronização.
+Descrito em [01-estado-atual.md](01-estado-atual.md): buffer contínuo, clipe sob gatilho, tela de login, visualização das câmeras vinculadas a um botão, lista de gravações, cadastro de equipamento, rede direta do aparelho, retenção de disco e fila de sincronização.
 
 ## O que ainda é evolução
 

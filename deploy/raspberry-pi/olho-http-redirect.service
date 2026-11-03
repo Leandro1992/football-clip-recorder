@@ -1,0 +1,12 @@
+[Unit]
+Description=Redireciona a porta 80 do Olho no lance para a interface
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/olho-http-redirect
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

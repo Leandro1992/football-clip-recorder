@@ -54,6 +54,15 @@ const api: DesktopApi = {
   async validateGpioPin(pin: number, chip?: string) {
     return ipcRenderer.invoke('app:validate-gpio-pin', pin, chip);
   },
+  async getNetworkStatus() {
+    return ipcRenderer.invoke('app:get-network-status');
+  },
+  async scanWifi() {
+    return ipcRenderer.invoke('app:scan-wifi');
+  },
+  async connectVenueWifi(ssid: string, password: string) {
+    return ipcRenderer.invoke('app:connect-venue-wifi', ssid, password);
+  },
   onStatusChange(callback: (status: ApplicationStatus) => void) {
     const listener = (_event: Electron.IpcRendererEvent, status: ApplicationStatus) => {
       callback(status);

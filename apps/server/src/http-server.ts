@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readPreviewFrame, type CameraDeviceInfo, type LivePreviewCard } from '@football-clip-recorder/camera';
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata, Logger } from '@football-clip-recorder/core';
-import type { HostHealthReport } from '@football-clip-recorder/hardware';
+import type { HostHealthReport, VenueWifi } from '@football-clip-recorder/hardware';
 import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
 export interface ManagedRecorder {
@@ -41,6 +41,7 @@ export interface HttpServerOptions {
   onEquipmentConfigChanged?: (config: EquipmentConfig) => void;
   getLiveView: () => Promise<{ cards: LivePreviewCard[] }>;
   getHostHealth: () => Promise<HostHealthReport>;
+  venueWifi: Pick<VenueWifi, 'status' | 'scan' | 'connect'>;
   logger: Logger;
 }
 
@@ -465,6 +466,27 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
     if (method === 'GET' && pathname === '/api/equipment/discovery') {
       const cameras = await options.detectCameras();
       sendJson(response, 200, { cameras });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/network') {
+      sendJson(response, 200, await options.venueWifi.status());
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/network/wifi') {
+      sendJson(response, 200, await options.venueWifi.scan());
+      return;
+    }
+
+    if (method === 'POST' && pathname === '/api/network/wifi') {
+      const body = await readJsonBody<{ ssid?: string; password?: string }>(request);
+      const ssid = typeof body.ssid === 'string' ? body.ssid : '';
+      const password = typeof body.password === 'string' ? body.password : '';
+      logger.info('VENUE_WIFI_CONNECT_STARTED', { ssid });
+      const result = await options.venueWifi.connect(ssid, password);
+      logger.info('VENUE_WIFI_CONNECT_FINISHED', { ssid, ok: result.ok });
+      sendJson(response, 200, result);
       return;
     }
 

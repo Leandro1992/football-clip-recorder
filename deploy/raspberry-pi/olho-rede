@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""Consulta e troca o Wi-Fi da quadra. A senha entra pelo stdin e não vai para o log."""
+
+import json
+import shutil
+import subprocess
+import sys
+
+
+def emit(payload):
+    json.dump(payload, sys.stdout, ensure_ascii=False)
+    sys.stdout.write("\n")
+    raise SystemExit(0)
+
+
+def run(args, timeout=40):
+    return subprocess.run(args, text=True, capture_output=True, timeout=timeout, check=False)
+
+
+def nmcli(args, timeout=40):
+    binary = shutil.which("nmcli")
+    if binary is None:
+        raise RuntimeError("nmcli ausente")
+    return run([binary, *args], timeout=timeout)
+
+
+def split_nmcli(line):
+    fields = []
+    current = []
+    index = 0
+    while index < len(line):
+        if line[index] == "\\" and index + 1 < len(line):
+            current.append(line[index + 1])
+            index += 2
+            continue
+        if line[index] == ":":
+            fields.append("".join(current))
+            current = []
+            index += 1
+            continue
+        current.append(line[index])
+        index += 1
+    fields.append("".join(current))
+    return fields
+
+
+def connection_value(name, field):
+    result = nmcli(["-g", field, "connection", "show", name])
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def interface_address(name):
+    result = run(["ip", "-4", "-o", "addr", "show", "dev", name])
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if "inet" in parts:
+            return parts[parts.index("inet") + 1].split("/")[0]
+    return ""
+
+
+def status():
+    active = nmcli(["-t", "-f", "NAME,DEVICE", "connection", "show", "--active"])
+    ap_active = any(line.strip() == "olho-ap:ap0" for line in active.stdout.splitlines())
+    ssid = connection_value("olho-ap", "802-11-wireless.ssid")
+    password = ""
+    secret = nmcli(["-s", "-g", "802-11-wireless-security.psk", "connection", "show", "olho-ap"])
+    if secret.returncode == 0:
+        password = secret.stdout.strip()
+    address = interface_address("ap0") or "192.168.4.1"
+    venue_name = ""
+    device = nmcli(["-g", "GENERAL.CONNECTION", "device", "show", "wlan0"])
+    if device.returncode == 0:
+        venue_name = device.stdout.strip()
+    venue_connected = bool(venue_name and venue_name not in {"--", "olho-ap"})
+    venue_ssid = ""
+    venue_signal = None
+    if venue_connected:
+        venue_ssid = connection_value(venue_name, "802-11-wireless.ssid") or venue_name
+        listed = nmcli(["-t", "-f", "IN-USE,SIGNAL,SSID", "device", "wifi", "list", "ifname", "wlan0"])
+        for line in listed.stdout.splitlines():
+            fields = split_nmcli(line)
+            if len(fields) >= 3 and fields[0] == "*":
+                try:
+                    venue_signal = int(fields[1])
+                except ValueError:
+                    venue_signal = None
+                if not venue_ssid:
+                    venue_ssid = fields[2]
+                break
+    payload = {
+        "available": True,
+        "accessPoint": None,
+        "venue": {
+            "connected": venue_connected,
+            "ssid": venue_ssid or None,
+            "signal": venue_signal,
+        },
+    }
+    if ssid:
+        payload["accessPoint"] = {
+            "ssid": ssid,
+            "address": address,
+            "active": ap_active,
+            "password": password,
+        }
+    else:
+        payload["message"] = "O ponto de acesso ainda não está configurado."
+    return payload
+
+
+def scan():
+    listed = nmcli(
+        ["-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE", "device", "wifi", "list", "ifname", "wlan0", "--rescan", "yes"],
+        timeout=45,
+    )
+    if listed.returncode != 0:
+        listed = nmcli(["-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE", "device", "wifi", "list", "ifname", "wlan0"])
+    if listed.returncode != 0:
+        detail = (listed.stderr or listed.stdout or "").strip()
+        return {"available": False, "networks": [], "message": detail or "Não foi possível procurar redes."}
+    networks = {}
+    for line in listed.stdout.splitlines():
+        fields = split_nmcli(line)
+        if len(fields) < 4 or not fields[0]:
+            continue
+        try:
+            signal = int(fields[1])
+        except ValueError:
+            signal = 0
+        item = {"ssid": fields[0], "signal": signal, "security": fields[2], "inUse": fields[3] == "*"}
+        current = networks.get(item["ssid"])
+        if current is None or item["signal"] > current["signal"]:
+            networks[item["ssid"]] = item
+    ordered = sorted(networks.values(), key=lambda item: (-item["signal"], item["ssid"]))
+    return {"available": True, "networks": ordered}
+
+
+def connect():
+    try:
+        body = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError:
+        return {"ok": False, "message": "Pedido inválido."}
+    ssid = body.get("ssid", "")
+    password = body.get("password", "")
+    if not isinstance(ssid, str) or ssid.strip() == "" or len(ssid) > 32 or any(ord(char) < 32 for char in ssid):
+        return {"ok": False, "message": "Informe o nome da rede da quadra."}
+    if not isinstance(password, str) or (password and (len(password) < 8 or len(password) > 63)):
+        return {
+            "ok": False,
+            "message": "A senha da quadra precisa ter entre 8 e 63 caracteres. Rede aberta deixa a senha em branco.",
+        }
+    args = ["-w", "40", "device", "wifi", "connect", ssid, "ifname", "wlan0"]
+    if password:
+        args.extend(["password", password])
+    result = nmcli(args, timeout=50)
+    message = (result.stderr or result.stdout or "").strip()
+    if password:
+        message = message.replace(password, "***")
+    if result.returncode != 0:
+        return {"ok": False, "message": message or "Não foi possível entrar na rede da quadra."}
+    return {"ok": True, "message": f"Conectado à rede {ssid}. A sincronização usa essa rede."}
+
+
+def main():
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
+    try:
+        if command == "status":
+            emit(status())
+        if command == "scan":
+            emit(scan())
+        if command == "connect":
+            emit(connect())
+        emit({"available": False, "message": "Comando de rede desconhecido."})
+    except Exception:
+        if command == "connect":
+            emit({"ok": False, "message": "Não foi possível entrar na rede da quadra."})
+        emit({"available": False, "networks": [], "message": "Não foi possível consultar a rede do aparelho."})
+
+
+if __name__ == "__main__":
+    main()

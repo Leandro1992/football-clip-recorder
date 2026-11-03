@@ -1,0 +1,7 @@
+[Unit]
+Description=Recria a rede direta do Olho no lance se o rádio cair
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/olho-ap0-ensure --recover

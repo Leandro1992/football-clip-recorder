@@ -14,3 +14,5 @@
 | Retenção | Apagar clipes antigos ao passar do teto local ou do teto na nuvem |
 | Sincronização | Fila que segura o upload sem rede e continua quando a conectividade volta |
 | Operador | Pessoa na quadra usando a interface ou o botão físico |
+| Rede do aparelho | Wi-Fi criado pelo Raspberry para o celular abrir a interface em `http://192.168.4.1` |
+| Rede da quadra | Wi-Fi do local. O aparelho usa essa rede para sincronizar os clipes |

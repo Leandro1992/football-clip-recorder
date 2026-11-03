@@ -7,5 +7,6 @@ git checkout -- package-lock.json
 git pull --ff-only
 npm install
 npm run build
+bash deploy/raspberry-pi/setup-access-point.sh "$(id -un)"
 sudo systemctl restart football-clip-recorder
 echo "Atualizado: $(git log --oneline -1)"

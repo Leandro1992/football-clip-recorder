@@ -31,6 +31,6 @@ sed -e "s|__USER__|$APP_USER|g" -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__NODE__|$NO
   deploy/raspberry-pi/football-clip-recorder.service | sudo tee /etc/systemd/system/football-clip-recorder.service >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable --now football-clip-recorder
+bash "$APP_DIR/deploy/raspberry-pi/setup-access-point.sh" "$APP_USER"
 
-echo "Pronto. Acesse http://$(hostname -I | awk '{print $1}'):3000"
 echo "Logs: journalctl -u football-clip-recorder -f"

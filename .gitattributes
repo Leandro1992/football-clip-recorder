@@ -1,0 +1,3 @@
+deploy/raspberry-pi/** text eol=lf
+*.sh text eol=lf
+deploy/raspberry-pi/olho-rede text eol=lf
