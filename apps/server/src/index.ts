@@ -21,7 +21,9 @@ import {
   UsbCameraWindows,
 } from '@football-clip-recorder/camera';
 import {
+  AppUpdate,
   CompositeTriggerButton,
+  createAppUpdateRunner,
   createSudoWifiRunner,
   GpioButton,
   HostHealthMonitor,
@@ -78,6 +80,7 @@ const seededEquipmentConfig: EquipmentConfig = {
 const equipmentStore = new EquipmentStore(config.paths.runtimeRoot, seededEquipmentConfig);
 const hostHealth = new HostHealthMonitor(config.paths.runtimeRoot);
 const venueWifi = new VenueWifi(createSudoWifiRunner());
+const appUpdate = new AppUpdate(createAppUpdateRunner(projectRoot));
 const equipmentConfig = equipmentStore.loadSync();
 
 for (const root of [config.paths.segmentsRoot, config.paths.previewRoot]) {
@@ -287,6 +290,7 @@ const server = createHttpServer({
   },
   getHostHealth: () => hostHealth.read(),
   venueWifi,
+  appUpdate,
   getLiveView: async () => {
     const catalog = await equipmentStore.load();
     const described = buildBoundCameraCards(catalog);

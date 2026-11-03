@@ -8,6 +8,8 @@ import type {
   PublicConfig,
   RecordingDeleteScope,
   RecordingFile,
+  UpdateStartResult,
+  VersionStatus,
   WifiConnectResult,
   WifiScan,
 } from '../electron/ipc-types';
@@ -87,6 +89,8 @@ export function createHttpApi(): DesktopApi {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ssid, password }),
       }),
+    getVersionStatus: () => request<VersionStatus>('/api/version'),
+    startUpdate: () => request<UpdateStartResult>('/api/version', { method: 'POST' }),
     onStatusChange: (callback: (status: ApplicationStatus) => void) => subscribe('status', callback),
     onClipsChange: (callback: (clips: ClipMetadata[]) => void) => subscribe('clips', callback),
   };

@@ -10,7 +10,7 @@ import {
   type ClipMetadata,
 } from '@football-clip-recorder/core';
 import { listCameraDevices, LivePreviewHub, readPreviewFrame, resolveFfmpegPath, UsbCameraWindows } from '@football-clip-recorder/camera';
-import { createSudoWifiRunner, HostHealthMonitor, VenueWifi, VirtualButton } from '@football-clip-recorder/hardware';
+import { AppUpdate, createAppUpdateRunner, createSudoWifiRunner, HostHealthMonitor, VenueWifi, VirtualButton } from '@football-clip-recorder/hardware';
 import { createClipStorage } from '@football-clip-recorder/storage';
 import { ClipBuilder, VideoBuffer } from '@football-clip-recorder/video';
 import type { EquipmentConfig } from './ipc-types';
@@ -286,6 +286,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle('app:connect-venue-wifi', async (_event, ssid: string, password: string) => {
     return venueWifi.connect(String(ssid ?? ''), String(password ?? ''));
   });
+
+  const appUpdate = new AppUpdate(createAppUpdateRunner(projectRoot));
+  ipcMain.handle('app:get-version-status', () => appUpdate.status());
+  ipcMain.handle('app:start-update', () => appUpdate.start());
 
   ipcMain.handle('app:validate-gpio-pin', async (_event, pin: number) => {
     if (process.platform !== 'linux') {

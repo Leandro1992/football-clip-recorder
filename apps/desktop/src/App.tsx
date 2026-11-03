@@ -14,6 +14,7 @@ import type {
 } from '../electron/ipc-types';
 import { HealthPanel } from './HealthPanel';
 import { NetworkPanel } from './NetworkPanel';
+import { VersionPanel } from './VersionPanel';
 
 const defaultStatus: ApplicationStatus = {
   cameraStatus: 'offline',
@@ -102,7 +103,7 @@ export function App() {
   const [discoveredCameras, setDiscoveredCameras] = useState<DiscoveredCamera[]>([]);
   const [equipmentMessage, setEquipmentMessage] = useState<string | undefined>(undefined);
 
-  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment' | 'health' | 'network'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment' | 'health' | 'network' | 'version'>('live');
   const [hostHealth, setHostHealth] = useState<HostHealthReport | undefined>(undefined);
   const [hostHealthError, setHostHealthError] = useState<string | undefined>(undefined);
   const [previewError, setPreviewError] = useState<string | undefined>(undefined);
@@ -594,6 +595,14 @@ export function App() {
             Rede
           </button>
         </li>
+        <li className="nav-item">
+          <button
+            className={activeTab === 'version' ? 'nav-link active' : 'nav-link'}
+            onClick={() => setActiveTab('version')}
+          >
+            Controle de versão
+          </button>
+        </li>
       </ul>
 
       {activeTab === 'live' ? (
@@ -826,6 +835,8 @@ export function App() {
       {activeTab === 'health' ? <HealthPanel report={hostHealth} error={hostHealthError} /> : null}
 
       {activeTab === 'network' ? <NetworkPanel /> : null}
+
+      {activeTab === 'version' ? <VersionPanel /> : null}
 
       {activeTab === 'equipment' ? (
         <div className="row g-3">

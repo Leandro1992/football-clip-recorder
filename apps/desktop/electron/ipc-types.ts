@@ -3,12 +3,23 @@ import type {
   HealthLevel,
   HostHealthReport,
   NetworkStatus,
+  UpdateStartResult,
+  VersionStatus,
   WifiConnectResult,
   WifiNetwork,
   WifiScan,
 } from '@football-clip-recorder/hardware';
 
-export type { HealthLevel, HostHealthReport, NetworkStatus, WifiConnectResult, WifiNetwork, WifiScan };
+export type {
+  HealthLevel,
+  HostHealthReport,
+  NetworkStatus,
+  UpdateStartResult,
+  VersionStatus,
+  WifiConnectResult,
+  WifiNetwork,
+  WifiScan,
+};
 
 export interface RecordingFile {
   id: string;
@@ -111,6 +122,8 @@ export interface DesktopApi {
   getNetworkStatus(): Promise<NetworkStatus>;
   scanWifi(): Promise<WifiScan>;
   connectVenueWifi(ssid: string, password: string): Promise<WifiConnectResult>;
+  getVersionStatus(): Promise<VersionStatus>;
+  startUpdate(): Promise<UpdateStartResult>;
   onStatusChange(callback: (status: ApplicationStatus) => void): () => void;
   onClipsChange(callback: (clips: ClipMetadata[]) => void): () => void;
 }

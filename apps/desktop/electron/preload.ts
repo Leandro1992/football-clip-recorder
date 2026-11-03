@@ -63,6 +63,12 @@ const api: DesktopApi = {
   async connectVenueWifi(ssid: string, password: string) {
     return ipcRenderer.invoke('app:connect-venue-wifi', ssid, password);
   },
+  async getVersionStatus() {
+    return ipcRenderer.invoke('app:get-version-status');
+  },
+  async startUpdate() {
+    return ipcRenderer.invoke('app:start-update');
+  },
   onStatusChange(callback: (status: ApplicationStatus) => void) {
     const listener = (_event: Electron.IpcRendererEvent, status: ApplicationStatus) => {
       callback(status);

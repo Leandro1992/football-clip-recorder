@@ -1,0 +1,25 @@
+#!/bin/bash
+# Baixa a main, compila e reinicia. Roda como root, num serviço separado da câmera.
+set -euo pipefail
+
+ENV_FILE=/etc/olho-no-lance/update.env
+if [ ! -f "$ENV_FILE" ]; then
+  echo "Falta $ENV_FILE" >&2
+  exit 1
+fi
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
+if [ -z "${APP_DIR:-}" ] || [ -z "${APP_USER:-}" ]; then
+  echo "APP_DIR e APP_USER são obrigatórios em $ENV_FILE" >&2
+  exit 1
+fi
+
+export PATH="/usr/local/bin:/usr/bin:/bin"
+runuser -u "$APP_USER" -- git -C "$APP_DIR" checkout -- package-lock.json
+runuser -u "$APP_USER" -- git -C "$APP_DIR" pull --ff-only
+runuser -u "$APP_USER" -- npm --prefix "$APP_DIR" install
+runuser -u "$APP_USER" -- npm --prefix "$APP_DIR" run build
+bash "$APP_DIR/deploy/raspberry-pi/setup-access-point.sh" "$APP_USER"
+systemctl restart football-clip-recorder
+echo "Atualizado: $(runuser -u "$APP_USER" -- git -C "$APP_DIR" log --oneline -1)"

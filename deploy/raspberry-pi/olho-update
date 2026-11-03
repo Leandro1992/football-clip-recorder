@@ -1,0 +1,11 @@
+#!/bin/bash
+# Dispara a atualização fora do serviço da câmera. Sem argumentos.
+set -euo pipefail
+
+if systemctl is-active --quiet olho-update.service; then
+  echo "em andamento"
+  exit 0
+fi
+
+systemctl reset-failed olho-update.service >/dev/null 2>&1 || true
+systemd-run --collect --no-block --unit=olho-update --description="Atualizacao do Olho no lance" /usr/local/sbin/olho-update-apply

@@ -1,5 +1,6 @@
 export * from './host-health';
 export * from './venue-wifi';
+export * from './app-update';
 export * from './virtual-button';
 export * from './gpio-button';
 export * from './composite-trigger-button';

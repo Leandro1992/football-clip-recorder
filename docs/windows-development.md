@@ -48,7 +48,7 @@ Use `AUDIO_GAIN_DB` to boost a quiet microphone and `AUDIO_DENOISE=true` to redu
 
 ## Login
 
-A interface abre numa tela de login simples, antes das abas. Os campos começam com `admin` / `admin`, o padrão de `AUTH_USERNAME` e `AUTH_PASSWORD`. Credencial errada permanece na mesma tela. Sair encerra a sessão. A aba Rede, no Windows, informa que a rede Wi-Fi do aparelho existe no Raspberry.
+A interface abre numa tela de login simples, antes das abas. Os campos começam com `admin` / `admin`, o padrão de `AUTH_USERNAME` e `AUTH_PASSWORD`. Credencial errada permanece na mesma tela. Sair encerra a sessão. A aba Rede, no Windows, informa que a rede Wi-Fi do aparelho existe no Raspberry. A aba Controle de versão informa que a atualização pela interface existe no Raspberry.
 
 ## Run the desktop app
 

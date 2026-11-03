@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readPreviewFrame, type CameraDeviceInfo, type LivePreviewCard } from '@football-clip-recorder/camera';
 import type { ApplicationSnapshot, ApplicationStatus, ClipMetadata, Logger } from '@football-clip-recorder/core';
-import type { HostHealthReport, VenueWifi } from '@football-clip-recorder/hardware';
+import type { AppUpdate, HostHealthReport, VenueWifi } from '@football-clip-recorder/hardware';
 import type { EquipmentButton, EquipmentCamera, EquipmentConfig, EquipmentStore } from './equipment-store';
 
 export interface ManagedRecorder {
@@ -42,6 +42,7 @@ export interface HttpServerOptions {
   getLiveView: () => Promise<{ cards: LivePreviewCard[] }>;
   getHostHealth: () => Promise<HostHealthReport>;
   venueWifi: Pick<VenueWifi, 'status' | 'scan' | 'connect'>;
+  appUpdate: Pick<AppUpdate, 'status' | 'start'>;
   logger: Logger;
 }
 
@@ -486,6 +487,19 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
       logger.info('VENUE_WIFI_CONNECT_STARTED', { ssid });
       const result = await options.venueWifi.connect(ssid, password);
       logger.info('VENUE_WIFI_CONNECT_FINISHED', { ssid, ok: result.ok });
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/version') {
+      sendJson(response, 200, await options.appUpdate.status());
+      return;
+    }
+
+    if (method === 'POST' && pathname === '/api/version') {
+      logger.info('APP_UPDATE_REQUESTED', {});
+      const result = await options.appUpdate.start();
+      logger.info('APP_UPDATE_ACCEPTED', { ok: result.ok });
       sendJson(response, 200, result);
       return;
     }

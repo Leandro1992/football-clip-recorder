@@ -26,12 +26,20 @@ if [ ! -f /etc/olho-no-lance/access-point.env ]; then
 fi
 
 sudo install -m 755 "$ROOT/deploy/raspberry-pi/olho-rede" /usr/local/sbin/olho-rede
+sudo install -m 755 "$ROOT/deploy/raspberry-pi/olho-update" /usr/local/sbin/olho-update
+sudo install -m 755 "$ROOT/deploy/raspberry-pi/olho-update-apply" /usr/local/sbin/olho-update-apply
 sudo install -m 755 "$ROOT/deploy/raspberry-pi/olho-ap0-ensure.sh" /usr/local/sbin/olho-ap0-ensure
 sudo install -m 755 "$ROOT/deploy/raspberry-pi/olho-http-redirect.sh" /usr/local/sbin/olho-http-redirect
+
+printf 'APP_DIR=%q\nAPP_USER=%q\n' "$ROOT" "$APP_USER" | sudo tee /etc/olho-no-lance/update.env >/dev/null
+sudo chmod 644 /etc/olho-no-lance/update.env
 
 printf '%s\n' "$APP_USER ALL=(root) NOPASSWD: /usr/local/sbin/olho-rede" | sudo tee /etc/sudoers.d/olho-rede >/dev/null
 sudo chmod 440 /etc/sudoers.d/olho-rede
 sudo visudo -cf /etc/sudoers.d/olho-rede
+printf '%s\n' "$APP_USER ALL=(root) NOPASSWD: /usr/local/sbin/olho-update" | sudo tee /etc/sudoers.d/olho-update >/dev/null
+sudo chmod 440 /etc/sudoers.d/olho-update
+sudo visudo -cf /etc/sudoers.d/olho-update
 
 if [ "$(hostname)" = "raspberrypi" ]; then
   if grep -q '^127.0.1.1' /etc/hosts; then

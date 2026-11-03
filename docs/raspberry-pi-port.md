@@ -32,7 +32,7 @@ bash deploy/raspberry-pi/setup.sh
 ```
 
 O script instala ffmpeg, v4l-utils, alsa-utils, gpiod e Node 20, cria `.env` a partir de `deploy/raspberry-pi/env.example`,
-faz o build e registra o serviço systemd `football-clip-recorder`. Para atualizar: `bash deploy/raspberry-pi/update.sh` (git pull, npm install, build e restart do serviço).
+faz o build e registra o serviço systemd `football-clip-recorder`. Para atualizar pelo terminal: `bash deploy/raspberry-pi/update.sh` (git pull, npm install, build e restart do serviço). Pela interface, a aba **Controle de versão** consulta a `main` ao abrir e libera o botão Atualizar quando há commits novos. A câmera para só na troca final, por alguns segundos.
 
 Logs: `journalctl -u football-clip-recorder -f`.
 

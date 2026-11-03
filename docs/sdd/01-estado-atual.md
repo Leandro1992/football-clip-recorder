@@ -58,17 +58,19 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 ## Interface
 
-A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera as abas Live, Vídeos, Gestão de equipamento, Saúde e Rede, mostra o usuário no topo e oferece Sair. Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
+A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera as abas Live, Vídeos, Gestão de equipamento, Saúde, Rede e Controle de versão, mostra o usuário no topo e oferece Sair. Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
 
 A aba Live mostra um cartão por câmera visível. Essa imagem é a referência para apontar a câmera. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15). Lista de gravações com download, exclusão local/nuvem/ambos e retry de upload.
 
 A aba Rede, no Raspberry, mostra a rede Wi-Fi do aparelho (nome, senha e `http://192.168.4.1`) e permite escolher a rede da quadra. A senha da quadra não entra no log. No Windows a mesma aba informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
 
+A aba Controle de versão consulta a `main` só quando é aberta. O botão Atualizar aparece quando a `main` está à frente e o aparelho não tem commit local. A compilação e a reinicialização rodam fora do processo da câmera. No Windows a aba informa que a atualização pela interface existe no Raspberry.
+
 A aba Saúde mostra CPU, carga, memória, disco das gravações, temperatura e o limite de alimentação do Raspberry. Atualiza a cada 5 segundos. Na Live, um aviso aparece quando algum desses sinais passa do limite.
 
 O clipe em H.264 pode ser codificado por `libx264` ou pelo codificador de hardware do Raspberry Pi (`h264_v4l2m2m`, `VIDEO_ENCODER`). O áudio é opcional (`ENABLE_AUDIO`); desligado, a câmera grava só vídeo.
 
-API autenticada: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/health`, `GET /api/network`, `GET /api/network/wifi`, `POST /api/network/wifi`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome`, `GET /api/events`, `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
+API autenticada: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, `GET /api/config`, `GET /api/snapshot`, `GET /api/preview-frame`, `GET /api/live-view`, `GET /api/health`, `GET /api/network`, `GET /api/network/wifi`, `POST /api/network/wifi`, `GET /api/version`, `POST /api/version`, `GET /api/recordings`, `DELETE /api/recordings`, `GET /api/recordings/:nome`, `GET /api/events`, `POST /api/trigger`, `POST /api/clips/:id/retry`, `GET/PUT /api/equipment`, `GET /api/equipment/discovery`, `POST /api/equipment/validate-gpio`.
 
 ## Documentos desencontrados
 
