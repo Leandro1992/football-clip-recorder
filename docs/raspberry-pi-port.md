@@ -12,7 +12,7 @@ O celular não precisa achar o IP da quadra. O Raspberry publica a própria rede
 4. A aba **Rede** escolhe o Wi-Fi da quadra. Os clipes sobem por essa rede. A rede do aparelho continua no ar.
 5. Se o celular avisar que a rede não tem internet, mantenha a conexão. Isso acontece quando a quadra ainda não está configurada. Com a quadra conectada, o celular também navega por ela.
 
-Enquanto o nome da máquina ainda for `raspberrypi`, o setup passa a chamá-la `olho-no-lance`. Na rede da quadra, se o roteador não isolar os aparelhos, `http://olho-no-lance.local` também abre a interface. O caminho que não depende do roteador é a rede do aparelho.
+Enquanto o nome da máquina ainda for `raspberrypi`, o setup passa a chamá-la `olho-no-lance`. Na rede da quadra, se o roteador não isolar os aparelhos, `http://olho-no-lance.local` abre a interface pelo endereço do aparelho nessa rede. O nome antigo `raspberrypi.local` não existe mais. O caminho que não depende do roteador é a rede do aparelho.
 
 Para trocar a senha da rede do aparelho, edite `AP_PASSWORD` em `/etc/olho-no-lance/access-point.env` (8 a 63 letras, números, ponto, `_` ou `-`) e rode de novo `bash deploy/raspberry-pi/setup-access-point.sh`.
 

@@ -68,7 +68,7 @@ Lances lista cada vídeo num cartão, com abrir, reenviar e exclusão no aparelh
 
 Quadra escolhe a quadra em uso, as câmeras e qual botão grava cada uma. Salvar grava `runtime/equipment-config.json`.
 
-Ajustes reúne o Cloudflare da quadra em uso, a rede, a saúde e a atualização. A rede, no Raspberry, mostra o Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. A senha da quadra não entra no log. No Windows a mesma tela informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
+Ajustes reúne o Cloudflare da quadra em uso, a rede, a saúde e a atualização. A rede, no Raspberry, mostra o Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. Na rede da quadra, `http://olho-no-lance.local` abre a interface pelo endereço do aparelho nessa rede. A senha da quadra não entra no log. No Windows a mesma tela informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
 
 A atualização consulta a `main` só quando a tela é aberta. O botão Atualizar aparece quando a `main` está à frente e o aparelho não tem commit local. A compilação e a reinicialização rodam fora do processo da câmera. No Windows a tela informa que a atualização pela interface existe no Raspberry.
 

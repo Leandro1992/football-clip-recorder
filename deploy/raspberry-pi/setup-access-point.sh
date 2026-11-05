@@ -51,6 +51,58 @@ if [ "$(hostname)" = "raspberrypi" ]; then
   sudo systemctl restart avahi-daemon || true
 fi
 
+# O nome .local na rede da quadra precisa ser o IPv4 do wlan0. O endereço do
+# ponto de acesso e o IPv6 local fazem o Windows abrir um destino inalcançável.
+avahi_result="$(sudo python3 - <<'PY'
+from pathlib import Path
+
+path = Path("/etc/avahi/avahi-daemon.conf")
+original = path.read_text()
+desired = {
+    "server": {"use-ipv6": "no", "deny-interfaces": "ap0,lo"},
+    "publish": {"publish-aaaa-on-ipv4": "no"},
+}
+section = None
+seen = {name: set() for name in desired}
+out = []
+
+def flush(sec):
+    if sec not in desired:
+        return
+    for key, value in desired[sec].items():
+        if key not in seen[sec]:
+            out.append(f"{key}={value}")
+
+for line in original.splitlines():
+    stripped = line.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        flush(section)
+        section = stripped[1:-1]
+        out.append(line)
+        continue
+    replaced = False
+    if section in desired and stripped and not stripped.startswith("#"):
+        for key, value in desired[section].items():
+            if stripped.startswith(key + "="):
+                out.append(f"{key}={value}")
+                seen[section].add(key)
+                replaced = True
+                break
+    if not replaced:
+        out.append(line)
+flush(section)
+updated = "\n".join(out) + "\n"
+if updated != original:
+    path.write_text(updated)
+    print("changed")
+else:
+    print("unchanged")
+PY
+)"
+if [ "$avahi_result" = "changed" ]; then
+  sudo systemctl restart avahi-daemon
+fi
+
 sudo install -m 644 "$ROOT/deploy/raspberry-pi/olho-ap0.service" /etc/systemd/system/olho-ap0.service
 sudo install -m 644 "$ROOT/deploy/raspberry-pi/olho-ap0-watch.service" /etc/systemd/system/olho-ap0-watch.service
 sudo install -m 644 "$ROOT/deploy/raspberry-pi/olho-ap0-watch.timer" /etc/systemd/system/olho-ap0-watch.timer
