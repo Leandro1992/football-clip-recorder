@@ -40,7 +40,7 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 - Botão virtual da UI sempre pode disparar `POST /api/trigger`.
 - `BUTTON_PROVIDER=gpio` acrescenta `GpioButton` (pull-up, ativo em nível baixo, debounce). O doc de Pi registra que o botão físico ainda não foi ensaiado em hardware.
-- A aba Gestão de equipamento persiste `runtime/equipment-config.json`: quadras, e dentro da quadra em uso as câmeras, os botões e o vínculo de cada câmera.
+- A tela Quadra persiste `runtime/equipment-config.json`: quadras, e dentro da quadra em uso as câmeras, os botões e o vínculo de cada câmera. O Cloudflare da quadra fica em Ajustes.
 - Cada quadra tem id, nome e o destino Cloudflare (endereço, bucket, região, access key e secret). O secret não entra no log. Se a quadra não tiver Cloudflare completo, o envio usa o `.env`.
 - Na subida, a configuração antiga sem quadras é gravada como a quadra principal, com as câmeras e os botões que já existiam. Sem arquivo, câmera e botão principais nascem do `.env` nessa quadra e o arquivo é criado.
 - Sem nenhuma câmera `isActive`, a gravação de clipe fica desligada. A captura FFmpeg da câmera configurada no ambiente continua o fluxo de start.
@@ -48,7 +48,7 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 - Um botão com várias câmeras gera um clipe de cada uma, e os clipes entram na fila de upload. Dois botões ativos no mesmo pino GPIO disparam a união dessas câmeras.
 - O arquivo do clipe começa com o nome da quadra, o nome da câmera e o horário local do registro. O envio usa o Cloudflare da quadra em que o clipe foi gravado.
 - O microfone fica na primeira câmera vinculada. As outras gravam só vídeo.
-- Na aba Live, cada uma dessas câmeras tem o próprio cartão. A falha de uma não esconde as outras.
+- Em Jogo, cada uma dessas câmeras tem o próprio cartão. A falha de uma não esconde as outras.
 - Botões GPIO novos e câmeras novas no catálogo passam a gravar depois de reiniciar o serviço. Mudar o vínculo de câmeras que já estão abertas vale no próximo aperto.
 
 ## Armazenamento
@@ -60,15 +60,19 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 ## Interface
 
-A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera as abas Live, Vídeos, Gestão de equipamento, Saúde, Rede e Controle de versão, mostra o usuário no topo e oferece Sair. Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
+A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera Jogo, Lances, Quadra e Ajustes. No celular a navegação fica fixa na base; numa tela larga, no topo. O desenho está em [03-design-system.md](03-design-system.md). Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
 
-A aba Live mostra um cartão por câmera visível. Essa imagem é a referência para apontar a câmera. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15). Lista de gravações com download, exclusão local/nuvem/ambos e retry de upload.
+Jogo mostra um cartão por câmera visível, com o quadro inteiro, e o botão Registrar lance junto da imagem. Essa imagem é a referência para apontar a câmera. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15).
 
-A aba Rede, no Raspberry, mostra a rede Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. A senha da quadra não entra no log. No Windows a mesma aba informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
+Lances lista cada vídeo num cartão, com abrir, reenviar e exclusão no aparelho, na nuvem ou nos dois.
 
-A aba Controle de versão consulta a `main` só quando é aberta. O botão Atualizar aparece quando a `main` está à frente e o aparelho não tem commit local. A compilação e a reinicialização rodam fora do processo da câmera. No Windows a aba informa que a atualização pela interface existe no Raspberry.
+Quadra escolhe a quadra em uso, as câmeras e qual botão grava cada uma. Salvar grava `runtime/equipment-config.json`.
 
-A aba Saúde mostra CPU, carga, memória, disco das gravações, temperatura e o limite de alimentação do Raspberry. Atualiza a cada 5 segundos. Na Live, um aviso aparece quando algum desses sinais passa do limite.
+Ajustes reúne o Cloudflare da quadra em uso, a rede, a saúde e a atualização. A rede, no Raspberry, mostra o Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. A senha da quadra não entra no log. No Windows a mesma tela informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
+
+A atualização consulta a `main` só quando a tela é aberta. O botão Atualizar aparece quando a `main` está à frente e o aparelho não tem commit local. A compilação e a reinicialização rodam fora do processo da câmera. No Windows a tela informa que a atualização pela interface existe no Raspberry.
+
+A saúde mostra CPU, carga, memória, disco das gravações, temperatura e o limite de alimentação do Raspberry. Atualiza a cada 5 segundos enquanto Jogo ou Saúde estão abertos. No Jogo, um aviso aparece quando algum desses sinais passa do limite.
 
 O clipe em H.264 pode ser codificado por `libx264` ou pelo codificador de hardware do Raspberry Pi (`h264_v4l2m2m`, `VIDEO_ENCODER`). O áudio é opcional (`ENABLE_AUDIO`); desligado, a câmera grava só vídeo.
 

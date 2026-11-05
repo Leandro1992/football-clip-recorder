@@ -13,9 +13,8 @@ import type {
   RecordingDeleteScope,
   RecordingFile,
 } from '../electron/ipc-types';
-import { HealthPanel } from './HealthPanel';
-import { NetworkPanel } from './NetworkPanel';
-import { VersionPanel } from './VersionPanel';
+import { FieldApp } from './FieldApp';
+import type { AdjustSection, Screen } from './field-copy';
 
 const defaultStatus: ApplicationStatus = {
   cameraStatus: 'offline',
@@ -42,7 +41,6 @@ const defaultEquipmentConfig: EquipmentConfig = {
   courts: [createCourt('quadra-principal', 'Quadra principal')],
 };
 const PRODUCT_NAME = 'Olho no lance';
-const PRODUCT_TAGLINE = 'Registro inteligente de lances';
 
 function BrandLogo({ small = false }: { small?: boolean }) {
   return (
@@ -54,8 +52,8 @@ function BrandLogo({ small = false }: { small?: boolean }) {
     >
       <defs>
         <linearGradient id="olhoNoLanceGradient" x1="0%" x2="100%" y1="0%" y2="100%">
-          <stop offset="0%" stopColor="#2563eb" />
-          <stop offset="100%" stopColor="#16a34a" />
+          <stop offset="0%" stopColor="#1f8a52" />
+          <stop offset="100%" stopColor="#0c3d26" />
         </linearGradient>
       </defs>
       <circle cx="32" cy="32" r="30" fill="url(#olhoNoLanceGradient)" />
@@ -103,7 +101,8 @@ export function App() {
   const [discoveredCameras, setDiscoveredCameras] = useState<DiscoveredCamera[]>([]);
   const [equipmentMessage, setEquipmentMessage] = useState<string | undefined>(undefined);
 
-  const [activeTab, setActiveTab] = useState<'live' | 'videos' | 'equipment' | 'health' | 'network' | 'version'>('live');
+  const [screen, setScreen] = useState<Screen>('jogo');
+  const [adjustSection, setAdjustSection] = useState<AdjustSection>('menu');
   const [hostHealth, setHostHealth] = useState<HostHealthReport | undefined>(undefined);
   const [hostHealthError, setHostHealthError] = useState<string | undefined>(undefined);
   const [previewError, setPreviewError] = useState<string | undefined>(undefined);
@@ -203,7 +202,7 @@ export function App() {
   }, [session.authenticated]);
 
   useEffect(() => {
-    if (!session.authenticated || activeTab !== 'live') {
+    if (!session.authenticated || screen !== 'jogo') {
       return;
     }
 
@@ -239,10 +238,10 @@ export function App() {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [session.authenticated, activeTab, publicConfig.preview.intervalSeconds]);
+  }, [session.authenticated, screen, publicConfig.preview.intervalSeconds]);
 
   useEffect(() => {
-    if (!session.authenticated || (activeTab !== 'live' && activeTab !== 'health')) {
+    if (!session.authenticated || (screen !== 'jogo' && !(screen === 'ajustes' && adjustSection === 'saude'))) {
       return;
     }
 
@@ -277,10 +276,10 @@ export function App() {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [session.authenticated, activeTab]);
+  }, [session.authenticated, screen, adjustSection]);
 
   useEffect(() => {
-    if (!session.authenticated || activeTab !== 'videos') {
+    if (!session.authenticated || screen !== 'lances') {
       return;
     }
 
@@ -291,7 +290,7 @@ export function App() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [activeTab, session.authenticated]);
+  }, [screen, session.authenticated]);
 
   const clipRows = useMemo(() => {
     return clips.map((clip) => ({
@@ -519,780 +518,91 @@ export function App() {
 
   const selectedCourt = activeCourt(equipmentConfig);
 
-  if (authLoading) {
-    return (
-      <main className="container py-5">
-        <div className="card shadow-sm">
-          <div className="card-body">Carregando...</div>
-        </div>
-      </main>
-    );
-  }
-
-  if (!session.authenticated) {
-    return (
-      <main className="container py-5">
-        <div className="row justify-content-center">
-          <div className="col-12 col-md-6 col-lg-4">
-            <div className="card shadow-sm">
-              <div className="card-body">
-                <div className="d-flex align-items-center gap-3 mb-3">
-                  <BrandLogo />
-                  <div>
-                    <h1 className="h5 mb-1">{PRODUCT_NAME}</h1>
-                    <div className="small text-secondary">{PRODUCT_TAGLINE}</div>
-                  </div>
-                </div>
-                <h2 className="h6 mb-3">Login</h2>
-                <div className="mb-3">
-                  <label className="form-label">Usuário</label>
-                  <input
-                    className="form-control"
-                    value={usernameInput}
-                    onChange={(event) => setUsernameInput(event.target.value)}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Senha</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    value={passwordInput}
-                    onChange={(event) => setPasswordInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        void submitLogin();
-                      }
-                    }}
-                  />
-                </div>
-                {authError ? <div className="alert alert-danger py-2">{authError}</div> : null}
-                <button className="btn btn-primary w-100" onClick={() => void submitLogin()}>
-                  Entrar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="container-fluid py-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div className="d-flex align-items-center gap-2">
-          <BrandLogo small />
-          <div>
-            <h1 className="h4 m-0">{PRODUCT_NAME}</h1>
-            <div className="small text-secondary">{PRODUCT_TAGLINE}</div>
-          </div>
-        </div>
-        <div className="d-flex gap-2">
-          <span className="badge text-bg-secondary align-self-center">{session.username}</span>
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => {
-              void window.desktopApi.logout().then(() => setSession({ authenticated: false }));
-            }}
-          >
-            Sair
-          </button>
-        </div>
-      </div>
-
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={activeTab === 'live' ? 'nav-link active' : 'nav-link'}
-            onClick={() => setActiveTab('live')}
-          >
-            Live
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={activeTab === 'videos' ? 'nav-link active' : 'nav-link'}
-            onClick={() => setActiveTab('videos')}
-          >
-            Vídeos
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={activeTab === 'equipment' ? 'nav-link active' : 'nav-link'}
-            onClick={() => setActiveTab('equipment')}
-          >
-            Gestão de equipamento
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={activeTab === 'health' ? 'nav-link active' : 'nav-link'}
-            onClick={() => setActiveTab('health')}
-          >
-            Saúde
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={activeTab === 'network' ? 'nav-link active' : 'nav-link'}
-            onClick={() => setActiveTab('network')}
-          >
-            Rede
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={activeTab === 'version' ? 'nav-link active' : 'nav-link'}
-            onClick={() => setActiveTab('version')}
-          >
-            Controle de versão
-          </button>
-        </li>
-      </ul>
-
-      {activeTab === 'live' ? (
-        <div className="row g-3">
-          <div className="col-12 col-xl-8">
-            <div className="row g-3">
-              <div className="col-12">
-                <p className="text-secondary small mb-0">
-                  A visualização atualiza a cada {publicConfig.preview.intervalSeconds} segundos, numa imagem de até{' '}
-                  {publicConfig.preview.width} px. Use esta imagem para apontar a câmera. A gravação do lance continua na
-                  resolução da câmera.
-                </p>
-              </div>
-              {hostHealth && hostHealth.level !== 'ok' ? (
-                <div className="col-12">
-                  <div className={`alert mb-0 ${hostHealth.level === 'critical' ? 'alert-danger' : 'alert-warning'}`}>
-                    {hostHealth.summary} Os números estão na aba Saúde.
-                  </div>
-                </div>
-              ) : null}
-              {previewError ? (
-                <div className="col-12">
-                  <div className="alert alert-danger mb-0">{previewError}</div>
-                </div>
-              ) : null}
-              {liveCards.length === 0 ? (
-                <div className="col-12">
-                  <div className="card">
-                    <div className="card-body text-secondary">Carregando visualização...</div>
-                  </div>
-                </div>
-              ) : (
-                liveCards.map((card) => (
-                  <div key={card.key} className={liveCards.length > 1 ? 'col-12 col-lg-6' : 'col-12'}>
-                    <div className="card h-100">
-                      <div className="card-header d-flex justify-content-between align-items-center gap-2">
-                        <strong>{card.title}</strong>
-                        {card.buttonNames.length > 0 ? (
-                          <span className="small text-secondary text-end">{card.buttonNames.join(', ')}</span>
-                        ) : null}
-                      </div>
-                      <div className="card-body">
-                        <div
-                          className={`preview-frame border rounded p-2 bg-black${
-                            liveCards.length > 1 ? ' preview-frame-compact' : ''
-                          }`}
-                        >
-                          {card.imageDataUrl ? (
-                            <img
-                              src={card.imageDataUrl}
-                              alt={`Preview de ${card.title}`}
-                              className="preview-video w-100"
-                            />
-                          ) : (
-                            <div className="text-center py-5 text-secondary">
-                              {card.message ?? 'Aguardando preview da câmera...'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-              <div className="col-12">
-                <div className="d-grid">
-                  <button
-                    className="btn btn-success btn-lg"
-                    disabled={!status.canTrigger}
-                    onClick={() => {
-                      void window.desktopApi.triggerClip();
-                    }}
-                  >
-                    ⚽ Registrar lance
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="col-12 col-xl-4">
-            <div className="card mb-3">
-              <div className="card-header">Status</div>
-              <div className="card-body">
-                <div><strong>Câmera:</strong> {status.cameraStatus}</div>
-                <div><strong>Buffer:</strong> {status.availableBufferSeconds.toFixed(1)}s</div>
-                <div><strong>Processamento:</strong> {status.processingStatus}</div>
-                <div><strong>Upload:</strong> {status.uploadStatus}</div>
-                <div className="mt-2 text-secondary">{status.lastMessage ?? 'Aguardando evento...'}</div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-header">Últimos clipes</div>
-              <div className="list-group list-group-flush">
-                {clipRows.length === 0 ? (
-                  <div className="list-group-item text-secondary">Nenhum clipe registrado ainda.</div>
-                ) : (
-                  clipRows.slice(0, 8).map((clip) => (
-                    <div key={clip.id} className="list-group-item">
-                      <div className="d-flex justify-content-between">
-                        <strong>{clip.timeLabel}</strong>
-                        <span>{clip.duration.toFixed(0)}s</span>
-                      </div>
-                      <div className="small text-secondary">
-                        {clip.storageStatus === 'uploaded' ? 'Upload concluído' : 'Pendente'}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {activeTab === 'videos' ? (
-        <div className="card">
-          <div className="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
-            <strong>Gestão de vídeos</strong>
-            <div className="d-flex flex-wrap gap-2">
-              <button className="btn btn-outline-secondary btn-sm" onClick={() => void refreshRecordings()}>
-                Atualizar
-              </button>
-              <select
-                className="form-select form-select-sm"
-                value={bulkDeleteScope}
-                onChange={(event) => setBulkDeleteScope(event.target.value as RecordingDeleteScope)}
-              >
-                <option value="local">Excluir apenas local</option>
-                <option value="cloud">Excluir apenas nuvem</option>
-                <option value="both">Excluir local + nuvem</option>
-              </select>
-              <button
-                className="btn btn-danger btn-sm"
-                disabled={selectedRecordingIds.length === 0}
-                onClick={() => {
-                  void deleteSelectedRecordings(bulkDeleteScope);
-                }}
-              >
-                Excluir selecionados
-              </button>
-            </div>
-          </div>
-          <div className="card-body">
-            <div className="row mb-3">
-              <div className="col-md-6">
-                <div className="small text-secondary">
-                  Local: {formatBytes(localBytesUsed)} / {formatBytes(publicConfig.storage.maxLocalBytes)}
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="small text-secondary">
-                  Nuvem (estimado): {formatBytes(cloudBytesEstimated)} / {formatBytes(publicConfig.storage.maxCloudBytes)}
-                </div>
-              </div>
-            </div>
-            <div className="table-responsive">
-              <table className="table table-striped table-hover align-middle">
-                <thead>
-                  <tr>
-                    <th style={{ width: '40px' }}>
-                      <input
-                        type="checkbox"
-                        checked={recordings.length > 0 && selectedRecordingIds.length === recordings.length}
-                        onChange={(event) => {
-                          if (event.target.checked) {
-                            setSelectedRecordingIds(recordings.map((item) => item.id));
-                          } else {
-                            setSelectedRecordingIds([]);
-                          }
-                        }}
-                      />
-                    </th>
-                    <th>Arquivo</th>
-                    <th>Tamanho</th>
-                    <th>Data</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recordings.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center text-secondary">Nenhuma gravação disponível.</td>
-                    </tr>
-                  ) : (
-                    recordings.map((recording) => (
-                      <tr key={recording.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={selectedRecordingIds.includes(recording.id)}
-                            onChange={(event) => toggleRecordingSelection(recording.id, event.target.checked)}
-                          />
-                        </td>
-                        <td>{recording.name}</td>
-                        <td>{formatBytes(recording.sizeBytes)}</td>
-                        <td>{new Date(recording.modifiedAt).toLocaleString('pt-BR')}</td>
-                        <td>{recording.isUploaded ? 'Sincronizado' : 'Local'}</td>
-                        <td>
-                          <div className="btn-group btn-group-sm">
-                            <button
-                              className="btn btn-outline-secondary"
-                              onClick={() => {
-                                void window.desktopApi.openRecording(recording.path);
-                              }}
-                            >
-                              Abrir
-                            </button>
-                            <button
-                              className="btn btn-outline-warning"
-                              onClick={() => {
-                                void window.desktopApi.retryUpload(recording.id);
-                              }}
-                              disabled={recording.storageStatus !== 'pending'}
-                            >
-                              Reenviar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {activeTab === 'health' ? <HealthPanel report={hostHealth} error={hostHealthError} /> : null}
-
-      {activeTab === 'network' ? <NetworkPanel /> : null}
-
-      {activeTab === 'version' ? <VersionPanel /> : null}
-
-      {activeTab === 'equipment' ? (
-        <div className="row g-3">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header"><strong>Quadra em uso</strong></div>
-              <div className="card-body">
-                <div className="row g-2 align-items-end">
-                  <div className="col-md-4">
-                    <label className="form-label">Quadra</label>
-                    <select
-                      className="form-select"
-                      value={selectedCourt.id}
-                      onChange={(event) =>
-                        setEquipmentConfig((current) => ({ ...current, activeCourtId: event.target.value }))
-                      }
-                    >
-                      {equipmentConfig.courts.map((court) => (
-                        <option key={court.id} value={court.id}>
-                          {court.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Nome</label>
-                    <input
-                      className="form-control"
-                      value={selectedCourt.name}
-                      onChange={(event) => renameActiveCourt(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <input
-                      className="form-control"
-                      placeholder="Nova quadra"
-                      value={courtNameInput}
-                      onChange={(event) => setCourtNameInput(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-1 d-grid">
-                    <button className="btn btn-outline-primary" onClick={addCourt}>Adicionar</button>
-                  </div>
-                </div>
-                <p className="small text-secondary mt-3 mb-2">
-                  Os vídeos desta quadra saem com o nome da quadra, o da câmera e o horário. O envio usa o Cloudflare abaixo.
-                </p>
-                <div className="row g-2">
-                  <div className="col-md-6">
-                    <label className="form-label">Endereço Cloudflare</label>
-                    <input
-                      className="form-control"
-                      placeholder="https://conta.r2.cloudflarestorage.com"
-                      value={selectedCourt.cloud.endpoint}
-                      onChange={(event) => updateCourtCloud('endpoint', event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Bucket</label>
-                    <input
-                      className="form-control"
-                      value={selectedCourt.cloud.bucket}
-                      onChange={(event) => updateCourtCloud('bucket', event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Região</label>
-                    <input
-                      className="form-control"
-                      value={selectedCourt.cloud.region}
-                      onChange={(event) => updateCourtCloud('region', event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Access key</label>
-                    <input
-                      className="form-control"
-                      value={selectedCourt.cloud.accessKeyId}
-                      onChange={(event) => updateCourtCloud('accessKeyId', event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Secret</label>
-                    <input
-                      className="form-control"
-                      type="password"
-                      placeholder="Em branco mantém o secret já salvo"
-                      value={selectedCourt.cloud.secretAccessKey}
-                      onChange={(event) => updateCourtCloud('secretAccessKey', event.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          {selectedCourt.cameras.every((camera) => !camera.isActive) ? (
-            <div className="col-12">
-              <div className="alert alert-warning mb-0">
-                Nenhuma câmera ativa. A gravação fica bloqueada até você ativar ao menos uma câmera.
-              </div>
-            </div>
-          ) : null}
-          <div className="col-12 col-xl-6">
-            <div className="card mb-3">
-              <div className="card-header"><strong>Cadastro de câmeras</strong></div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <div className="small text-secondary mb-2">Detecção automática</div>
-                  <div className="d-flex flex-wrap gap-2">
-                    <button className="btn btn-outline-secondary btn-sm" onClick={() => void refreshDiscovery()}>
-                      Autodetectar câmeras
-                    </button>
-                  </div>
-                </div>
-                <div className="small text-secondary mb-2">Cadastro manual</div>
-                <div className="row g-2">
-                  <div className="col-md-5">
-                    <input
-                      className="form-control"
-                      placeholder="Nome da câmera"
-                      value={cameraNameInput}
-                      onChange={(event) => setCameraNameInput(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-5">
-                    <input
-                      className="form-control"
-                      placeholder="/dev/video0"
-                      value={cameraDeviceInput}
-                      onChange={(event) => setCameraDeviceInput(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-2 d-grid">
-                    <button className="btn btn-primary" onClick={addManualCamera}>Adicionar</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card mb-3">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <strong>Câmeras detectadas</strong>
-              </div>
-              <div className="card-body">
-                <div className="d-flex flex-column gap-2">
-                  {discoveredCameras.length === 0 ? (
-                    <span className="text-secondary">Nenhuma câmera detectada agora.</span>
-                  ) : (
-                    discoveredCameras.map((camera) => (
-                      <div key={camera.deviceId} className="d-flex justify-content-between align-items-center border rounded p-2">
-                        <span>{camera.name} <span className="text-secondary">({camera.deviceId})</span></span>
-                        <button
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => addDetectedCamera(camera)}
-                        >
-                          Adicionar
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header"><strong>Câmeras cadastradas</strong></div>
-              <div className="card-body p-0">
-                <ul className="list-group list-group-flush">
-                  {selectedCourt.cameras.length === 0 ? (
-                    <li className="list-group-item text-secondary">Nenhuma câmera cadastrada.</li>
-                  ) : (
-                    selectedCourt.cameras.map((camera) => (
-                      <li key={camera.id} className="list-group-item">
-                        <div className="row g-2 align-items-center">
-                          <div className="col-md-4">
-                            <input
-                              className="form-control form-control-sm"
-                              value={camera.name}
-                              onChange={(event) =>
-                                updateCamera(camera.id, (current) => ({
-                                  ...current,
-                                  name: event.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <input
-                              className="form-control form-control-sm"
-                              value={camera.deviceId}
-                              onChange={(event) =>
-                                updateCamera(camera.id, (current) => ({
-                                  ...current,
-                                  deviceId: event.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-                          <div className="col-md-2">
-                            <div className="form-check form-switch m-0">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                checked={camera.isActive}
-                                onChange={(event) =>
-                                  updateCamera(camera.id, (current) => ({
-                                    ...current,
-                                    isActive: event.target.checked,
-                                  }))
-                                }
-                              />
-                              <label className="form-check-label small">
-                                {camera.isActive ? 'Ativa' : 'Inativa'}
-                              </label>
-                            </div>
-                          </div>
-                          <div className="col-md-2 d-grid">
-                            <button
-                              className="btn btn-outline-danger btn-sm"
-                              onClick={() => removeCamera(camera.id)}
-                            >
-                              Excluir
-                            </button>
-                          </div>
-                        </div>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-12 col-xl-6">
-            <div className="card mb-3">
-              <div className="card-header"><strong>Cadastro de botões</strong></div>
-              <div className="card-body">
-                <div className="row g-2">
-                  <div className="col-md-4">
-                    <input
-                      className="form-control"
-                      placeholder="Nome do botão"
-                      value={buttonNameInput}
-                      onChange={(event) => setButtonNameInput(event.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <select
-                      className="form-select"
-                      value={buttonTypeInput}
-                      onChange={(event) => setButtonTypeInput(event.target.value as 'virtual' | 'gpio')}
-                    >
-                      <option value="virtual">Virtual</option>
-                      <option value="gpio">Físico (GPIO)</option>
-                    </select>
-                  </div>
-                  <div className="col-md-2">
-                    <input
-                      className="form-control"
-                      placeholder="PIN"
-                      value={buttonPinInput}
-                      onChange={(event) => setButtonPinInput(event.target.value)}
-                      disabled={buttonTypeInput !== 'gpio'}
-                    />
-                  </div>
-                  <div className="col-md-3">
-                    <input
-                      className="form-control"
-                      placeholder="gpiochip0"
-                      value={buttonChipInput}
-                      onChange={(event) => setButtonChipInput(event.target.value)}
-                      disabled={buttonTypeInput !== 'gpio'}
-                    />
-                  </div>
-                </div>
-                <div className="d-flex gap-2 mt-2">
-                  <button className="btn btn-primary btn-sm" onClick={addButton}>Adicionar botão</button>
-                  {buttonTypeInput === 'gpio' ? (
-                    <button
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => void validateGpioPin(Number(buttonPinInput), buttonChipInput)}
-                    >
-                      Validar conectividade GPIO
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="card mb-3">
-              <div className="card-header"><strong>Botões cadastrados</strong></div>
-              <div className="card-body p-0">
-                <ul className="list-group list-group-flush">
-                  {selectedCourt.buttons.length === 0 ? (
-                    <li className="list-group-item text-secondary">Nenhum botão cadastrado.</li>
-                  ) : (
-                    selectedCourt.buttons.map((button) => (
-                      <li key={button.id} className="list-group-item">
-                        <div className="row g-2 align-items-center">
-                          <div className="col-md-4">
-                            <input
-                              className="form-control form-control-sm"
-                              value={button.name}
-                              onChange={(event) =>
-                                updateButton(button.id, (current) => ({
-                                  ...current,
-                                  name: event.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-                          <div className="col-md-3 text-secondary small">
-                            {button.type === 'gpio'
-                              ? `GPIO ${button.gpioPin ?? '-'} (${button.gpioChip ?? 'gpiochip0'})`
-                              : 'Virtual'}
-                          </div>
-                          <div className="col-md-3">
-                            <div className="form-check form-switch m-0">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                checked={button.isActive}
-                                onChange={(event) =>
-                                  updateButton(button.id, (current) => ({
-                                    ...current,
-                                    isActive: event.target.checked,
-                                  }))
-                                }
-                              />
-                              <label className="form-check-label small">
-                                {button.isActive ? 'Ativo' : 'Inativo'}
-                              </label>
-                            </div>
-                          </div>
-                          <div className="col-md-2 d-grid">
-                            <button
-                              className="btn btn-outline-danger btn-sm"
-                              onClick={() => removeButton(button.id)}
-                            >
-                              Excluir
-                            </button>
-                          </div>
-                        </div>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header"><strong>Vínculo botão ↔ câmeras</strong></div>
-              <div className="card-body">
-                <p className="small text-secondary">
-                  Depois de salvar, cada câmera ativa ligada a um botão ativo aparece na aba Live.
-                </p>
-                {selectedCourt.buttons.length === 0 ? (
-                  <div className="text-secondary">Cadastre botões para criar os vínculos.</div>
-                ) : (
-                  selectedCourt.buttons.map((button) => {
-                    const binding = selectedCourt.bindings.find((entry) => entry.buttonId === button.id) ?? {
-                      buttonId: button.id,
-                      cameraIds: [],
-                    };
-                    return (
-                      <div key={button.id} className="mb-3 border rounded p-2">
-                        <div className="fw-semibold">{button.name}</div>
-                        <div className="small text-secondary mb-2">
-                          {button.type === 'gpio'
-                            ? `GPIO ${button.gpioPin ?? '-'} (${button.gpioChip ?? 'gpiochip0'})`
-                            : 'Virtual'}
-                        </div>
-                        <div className="d-flex flex-column gap-1">
-                          {selectedCourt.cameras.filter((camera) => camera.isActive).length === 0 ? (
-                            <span className="text-secondary">Nenhuma câmera para vincular.</span>
-                          ) : (
-                            selectedCourt.cameras
-                              .filter((camera) => camera.isActive)
-                              .map((camera) => (
-                              <label key={camera.id} className="form-check">
-                                <input
-                                  className="form-check-input"
-                                  type="checkbox"
-                                  checked={binding.cameraIds.includes(camera.id)}
-                                  onChange={(event) =>
-                                    toggleBinding(button.id, camera.id, event.target.checked)
-                                  }
-                                />
-                                <span className="form-check-label">{camera.name}</span>
-                              </label>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-
-                <div className="d-grid">
-                  <button className="btn btn-success" onClick={() => void saveEquipmentConfig()}>
-                    Salvar configuração de equipamento
-                  </button>
-                </div>
-                {equipmentMessage ? <div className="alert alert-info mt-3 py-2">{equipmentMessage}</div> : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </main>
+    <FieldApp
+      productName={PRODUCT_NAME}
+      logo={<BrandLogo small />}
+      authLoading={authLoading}
+      session={session}
+      authError={authError}
+      usernameInput={usernameInput}
+      passwordInput={passwordInput}
+      onUsername={setUsernameInput}
+      onPassword={setPasswordInput}
+      onLogin={() => void submitLogin()}
+      onLogout={() => {
+        void window.desktopApi.logout().then(() => setSession({ authenticated: false }));
+      }}
+      screen={screen}
+      onScreen={setScreen}
+      adjustSection={adjustSection}
+      onAdjustSection={setAdjustSection}
+      status={status}
+      hostHealth={hostHealth}
+      hostHealthError={hostHealthError}
+      previewError={previewError}
+      liveCards={liveCards}
+      clips={clipRows.map((clip) => ({
+        id: clip.id,
+        timeLabel: clip.timeLabel,
+        durationSeconds: clip.duration,
+        storageStatus: clip.storageStatus,
+      }))}
+      recordings={recordings}
+      selectedRecordingIds={selectedRecordingIds}
+      bulkDeleteScope={bulkDeleteScope}
+      onBulkDeleteScope={setBulkDeleteScope}
+      onToggleRecording={toggleRecordingSelection}
+      onDeleteRecordings={() => void deleteSelectedRecordings(bulkDeleteScope)}
+      onOpenRecording={(path) => {
+        void window.desktopApi.openRecording(path);
+      }}
+      onRetryUpload={(id) => {
+        void window.desktopApi.retryUpload(id);
+      }}
+      localBytes={formatBytes(localBytesUsed)}
+      localLimit={formatBytes(publicConfig.storage.maxLocalBytes)}
+      cloudBytes={formatBytes(cloudBytesEstimated)}
+      cloudLimit={formatBytes(publicConfig.storage.maxCloudBytes)}
+      equipmentConfig={equipmentConfig}
+      selectedCourtName={selectedCourt.name}
+      selectedCourtId={selectedCourt.id}
+      cameras={selectedCourt.cameras}
+      buttons={selectedCourt.buttons}
+      bindings={selectedCourt.bindings}
+      discoveredCameras={discoveredCameras}
+      equipmentMessage={equipmentMessage}
+      courtNameInput={courtNameInput}
+      cameraNameInput={cameraNameInput}
+      cameraDeviceInput={cameraDeviceInput}
+      buttonNameInput={buttonNameInput}
+      buttonTypeInput={buttonTypeInput}
+      buttonPinInput={buttonPinInput}
+      buttonChipInput={buttonChipInput}
+      publicConfig={publicConfig}
+      onCourt={(id) => setEquipmentConfig((current) => ({ ...current, activeCourtId: id }))}
+      onRenameCourt={renameActiveCourt}
+      onCourtNameInput={setCourtNameInput}
+      onAddCourt={addCourt}
+      onCloud={updateCourtCloud}
+      cloud={selectedCourt.cloud}
+      onDiscover={() => void refreshDiscovery()}
+      onAddDetected={addDetectedCamera}
+      onCameraName={setCameraNameInput}
+      onCameraDevice={setCameraDeviceInput}
+      onAddManualCamera={addManualCamera}
+      onUpdateCamera={updateCamera}
+      onRemoveCamera={removeCamera}
+      onButtonName={setButtonNameInput}
+      onButtonType={setButtonTypeInput}
+      onButtonPin={setButtonPinInput}
+      onButtonChip={setButtonChipInput}
+      onAddButton={addButton}
+      onValidateGpio={() => void validateGpioPin(Number(buttonPinInput), buttonChipInput)}
+      onUpdateButton={updateButton}
+      onRemoveButton={removeButton}
+      onToggleBinding={toggleBinding}
+      onSaveEquipment={() => void saveEquipmentConfig()}
+    />
   );
 }

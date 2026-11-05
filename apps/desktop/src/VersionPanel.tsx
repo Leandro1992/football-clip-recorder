@@ -140,7 +140,7 @@ export function VersionPanel() {
             <strong>Controle de versão</strong>
           </div>
           <div className="card-body">
-            {loading ? <p className="text-secondary">Consultando a main...</p> : null}
+            {loading ? <p className="text-secondary">Consultando se há atualização...</p> : null}
             {offline ? (
               <div className="alert alert-warning">A página perdeu a conexão. Tentando de novo...</div>
             ) : null}

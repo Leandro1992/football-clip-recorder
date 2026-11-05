@@ -94,7 +94,7 @@ export function NetworkPanel() {
                 <p className="mb-2">
                   No celular, entre nesta rede Wi-Fi e abra{' '}
                   <a href="http://olhonolance.admin">http://olhonolance.admin</a>. Se o nome não abrir, use{' '}
-                  <a href={`http://${pageAddress}`}>{`http://${pageAddress}`}</a>. A aba Live mostra a imagem para
+                  <a href={`http://${pageAddress}`}>{`http://${pageAddress}`}</a>. Em Jogo, a imagem serve para
                   apontar a câmera.
                 </p>
                 <dl className="row mb-0">
