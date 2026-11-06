@@ -9,11 +9,11 @@ import {
   ClipRecorderApplication,
   ConnectivityMonitor,
   ConsoleLogger,
-  EMPTY_COURT_CLOUD,
+  courtUploadTargets,
+  normalizeEquipmentConfig,
   RecordingFleet,
   StorageRetention,
   SyncService,
-  type EquipmentConfig,
   type TriggerButton,
 } from '@football-clip-recorder/core';
 import {
@@ -47,48 +47,45 @@ const projectRoot = path.resolve(__dirname, '../../..');
 const config = loadConfig({ projectRoot });
 ensureRuntimeDirectories(config);
 
-const seededEquipmentConfig: EquipmentConfig = {
+const seededEquipmentConfig = normalizeEquipmentConfig({
   activeCourtId: 'quadra-principal',
+  cameras: [
+    {
+      id: config.equipment.mainCameraId,
+      name: config.equipment.mainCameraName,
+      deviceId: config.camera.deviceName || '/dev/video0',
+      isActive: true,
+    },
+  ],
+  buttons: [
+    config.button.provider === 'gpio' && typeof config.button.gpioPin === 'number'
+      ? {
+          id: config.equipment.mainButtonId,
+          name: config.equipment.mainButtonName,
+          type: 'gpio' as const,
+          isActive: true,
+          gpioPin: config.button.gpioPin,
+          gpioChip: config.button.gpioChip,
+          activeLow: config.button.activeLow,
+        }
+      : {
+          id: config.equipment.mainButtonId,
+          name: config.equipment.mainButtonName,
+          type: 'virtual' as const,
+          isActive: true,
+        },
+  ],
+  buckets: [{ id: 'bucket-principal', name: 'Bucket principal', endpoint: '', bucket: '', region: 'auto', accessKeyId: '', secretAccessKey: '' }],
   courts: [
     {
       id: 'quadra-principal',
       name: 'Quadra principal',
-      cloud: { ...EMPTY_COURT_CLOUD },
-      cameras: [
-        {
-          id: config.equipment.mainCameraId,
-          name: config.equipment.mainCameraName,
-          deviceId: config.camera.deviceName || '/dev/video0',
-          isActive: true,
-        },
-      ],
-      buttons: [
-        config.button.provider === 'gpio' && typeof config.button.gpioPin === 'number'
-          ? {
-              id: config.equipment.mainButtonId,
-              name: config.equipment.mainButtonName,
-              type: 'gpio' as const,
-              isActive: true,
-              gpioPin: config.button.gpioPin,
-              gpioChip: config.button.gpioChip,
-              activeLow: config.button.activeLow,
-            }
-          : {
-              id: config.equipment.mainButtonId,
-              name: config.equipment.mainButtonName,
-              type: 'virtual' as const,
-              isActive: true,
-            },
-      ],
-      bindings: [
-        {
-          buttonId: config.equipment.mainButtonId,
-          cameraIds: [config.equipment.mainCameraId],
-        },
-      ],
+      cameraIds: [config.equipment.mainCameraId],
+      buttonIds: [config.equipment.mainButtonId],
+      bucketId: 'bucket-principal',
     },
   ],
-};
+});
 
 const equipmentStore = new EquipmentStore(config.paths.runtimeRoot, seededEquipmentConfig);
 const hostHealth = new HostHealthMonitor(config.paths.runtimeRoot);
@@ -126,7 +123,7 @@ const recordingTargets =
 
 const clipStorage = createCourtClipStorage(
   createClipStorage(config, logger),
-  () => equipmentStore.loadSync().courts,
+  () => courtUploadTargets(equipmentStore.loadSync()),
   config.storage.maxCloudBytes,
   logger,
 );

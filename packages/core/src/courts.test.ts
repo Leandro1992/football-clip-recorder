@@ -1,7 +1,8 @@
 import {
+  activeCourtCatalog,
   buildClipFileName,
   courtIdFromClipName,
-  keepStoredCloudSecrets,
+  courtUploadTargets,
   normalizeEquipmentConfig,
   slugPart,
 } from './courts';
@@ -46,44 +47,55 @@ describe('normalizeEquipmentConfig', () => {
       bindings: [{ buttonId: 'btn-1', cameraIds: ['cam-1'] }],
     });
     expect(config.courts).toHaveLength(1);
-    expect(config.courts[0]?.cameras[0]?.name).toBe('Gol');
-    expect(config.courts[0]?.buttons[0]?.id).toBe('btn-1');
-    expect(config.courts[0]?.bindings[0]?.cameraIds).toEqual(['cam-1']);
+    expect(config.cameras[0]?.name).toBe('Gol');
+    expect(config.buttons[0]?.id).toBe('btn-1');
+    expect(config.courts[0]?.cameraIds).toEqual(['cam-1']);
+    expect(config.courts[0]?.buttonIds).toEqual(['btn-1']);
     expect(config.activeCourtId).toBe(config.courts[0]?.id);
   });
 
-  it('keeps the selected court', () => {
+  it('lifts cameras, buttons and the secret out of a nested court', () => {
     const config = normalizeEquipmentConfig({
       activeCourtId: 'q2',
-      courts: [
-        { id: 'q1', name: 'A', cameras: [], buttons: [], bindings: [] },
-        { id: 'q2', name: 'B', cameras: [], buttons: [], bindings: [] },
-      ],
-    });
-    expect(config.activeCourtId).toBe('q2');
-    expect(config.courts[1]?.name).toBe('B');
-  });
-});
-
-describe('keepStoredCloudSecrets', () => {
-  it('keeps the stored secret when the save leaves it blank', () => {
-    const previous = normalizeEquipmentConfig({
-      activeCourtId: 'q1',
       courts: [
         {
           id: 'q1',
           name: 'A',
           cloud: { endpoint: 'https://r2.example', bucket: 'lances', region: 'auto', accessKeyId: 'key', secretAccessKey: 'stored' },
-          cameras: [],
-          buttons: [],
-          bindings: [],
+          cameras: [
+            { id: 'cam-1', name: 'Gol', deviceId: '/dev/video0', isActive: true },
+            { id: 'cam-2', name: 'Lateral', deviceId: '/dev/video1', isActive: true },
+          ],
+          buttons: [{ id: 'btn-1', name: 'Botao', type: 'gpio', isActive: true, gpioPin: 17 }],
+          bindings: [{ buttonId: 'btn-1', cameraIds: ['cam-1'] }],
         },
+        { id: 'q2', name: 'B', cameras: [], buttons: [], bindings: [] },
       ],
     });
-    const next = normalizeEquipmentConfig({
-      ...previous,
-      courts: [{ ...previous.courts[0], cloud: { ...previous.courts[0].cloud, secretAccessKey: '  ' } }],
+    expect(config.activeCourtId).toBe('q2');
+    expect(config.cameras.map((camera) => camera.id)).toEqual(['cam-1', 'cam-2']);
+    expect(config.buttons[0]?.gpioPin).toBe(17);
+    expect(config.buckets[0]?.secretAccessKey).toBe('stored');
+    expect(config.courts[0]?.cameraIds).toEqual(['cam-1', 'cam-2']);
+    expect(config.courts[0]?.bucketId).toBe('bucket-q1');
+    expect(config.courts[1]?.name).toBe('B');
+  });
+
+  it('keeps a court that already points at the catalogs', () => {
+    const config = normalizeEquipmentConfig({
+      activeCourtId: 'q1',
+      cameras: [
+        { id: 'cam-1', name: 'Gol', deviceId: '/dev/video0', isActive: true },
+        { id: 'cam-2', name: 'Lateral', deviceId: '/dev/video1', isActive: false },
+      ],
+      buttons: [{ id: 'btn-1', name: 'Botao', type: 'virtual', isActive: true }],
+      buckets: [
+        { id: 'bucket-1', name: 'R2', endpoint: 'https://r2.example', bucket: 'lances', region: 'auto', accessKeyId: 'key', secretAccessKey: 'stored' },
+      ],
+      courts: [{ id: 'q1', name: 'Centro', cameraIds: ['cam-1', 'cam-2', 'missing'], buttonIds: ['btn-1'], bucketId: 'bucket-1' }],
     });
-    expect(keepStoredCloudSecrets(previous, next).courts[0]?.cloud.secretAccessKey).toBe('stored');
+    expect(config.courts[0]?.cameraIds).toEqual(['cam-1', 'cam-2']);
+    expect(activeCourtCatalog(config).bindings[0]?.cameraIds).toEqual(['cam-1', 'cam-2']);
+    expect(courtUploadTargets(config)[0]?.cloud.secretAccessKey).toBe('stored');
   });
 });

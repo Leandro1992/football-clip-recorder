@@ -6,7 +6,6 @@ import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readPreviewFrame, type CameraDeviceInfo, type LivePreviewCard } from '@football-clip-recorder/camera';
 import {
-  keepStoredCloudSecrets,
   normalizeEquipmentConfig,
   type ApplicationSnapshot,
   type ApplicationStatus,
@@ -444,7 +443,7 @@ export function createHttpServer(options: HttpServerOptions): http.Server {
 
     if (method === 'PUT' && pathname === '/api/equipment') {
       const body = await readJsonBody<EquipmentConfig>(request);
-      const nextConfig = keepStoredCloudSecrets(await options.equipmentStore.load(), sanitizeEquipmentConfig(body));
+      const nextConfig = sanitizeEquipmentConfig(body);
       await options.equipmentStore.save(nextConfig);
       options.onEquipmentConfigChanged?.(nextConfig);
       sendJson(response, 200, { ok: true, config: nextConfig });

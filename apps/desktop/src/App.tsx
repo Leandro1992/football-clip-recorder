@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ApplicationStatus, ClipMetadata } from '@football-clip-recorder/core';
-import { activeCourt, createCourt, mapActiveCourt, type CourtCloud } from '../../../packages/core/src/courts';
+import { activeCourt, normalizeEquipmentConfig } from '../../../packages/core/src/courts';
 import type {
   AuthSession,
   DiscoveredCamera,
-  EquipmentButton,
-  EquipmentCamera,
   EquipmentConfig,
   HostHealthReport,
   LivePreviewCard,
@@ -36,10 +34,7 @@ const defaultConfig: PublicConfig = {
   },
 };
 
-const defaultEquipmentConfig: EquipmentConfig = {
-  activeCourtId: 'quadra-principal',
-  courts: [createCourt('quadra-principal', 'Quadra principal')],
-};
+const defaultEquipmentConfig: EquipmentConfig = normalizeEquipmentConfig({});
 const PRODUCT_NAME = 'Olho no lance';
 
 function BrandLogo({ small = false }: { small?: boolean }) {
@@ -79,13 +74,6 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(unit === 0 ? 0 : 2)} ${units[unit]}`;
 }
 
-function makeId(prefix: string): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-}
-
 export function App() {
   const [session, setSession] = useState<AuthSession>({ authenticated: false });
   const [authLoading, setAuthLoading] = useState(true);
@@ -109,14 +97,6 @@ export function App() {
   const [liveCards, setLiveCards] = useState<LivePreviewCard[]>([]);
   const [selectedRecordingIds, setSelectedRecordingIds] = useState<string[]>([]);
   const [bulkDeleteScope, setBulkDeleteScope] = useState<RecordingDeleteScope>('local');
-
-  const [cameraNameInput, setCameraNameInput] = useState('');
-  const [cameraDeviceInput, setCameraDeviceInput] = useState('');
-  const [buttonNameInput, setButtonNameInput] = useState('');
-  const [courtNameInput, setCourtNameInput] = useState('');
-  const [buttonTypeInput, setButtonTypeInput] = useState<'virtual' | 'gpio'>('virtual');
-  const [buttonPinInput, setButtonPinInput] = useState('17');
-  const [buttonChipInput, setButtonChipInput] = useState('gpiochip0');
 
   async function refreshRecordings(): Promise<void> {
     const nextRecordings = await window.desktopApi.getRecordings();
@@ -344,175 +324,16 @@ export function App() {
     });
   }
 
-  function addManualCamera(): void {
-    if (!cameraNameInput.trim() || !cameraDeviceInput.trim()) {
-      setEquipmentMessage('Informe nome e identificador da câmera.');
-      return;
-    }
-    const camera: EquipmentCamera = {
-      id: makeId('camera'),
-      name: cameraNameInput.trim(),
-      deviceId: cameraDeviceInput.trim(),
-      isActive: true,
-    };
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        cameras: [...court.cameras, camera],
-      })),
-    );
-    setCameraNameInput('');
-    setCameraDeviceInput('');
-    setEquipmentMessage('Câmera adicionada à configuração.');
-  }
-
-  function addDetectedCamera(camera: DiscoveredCamera): void {
-    setEquipmentConfig((current) => {
-      const court = activeCourt(current);
-      const alreadyExists = court.cameras.some((item) => item.deviceId === camera.deviceId);
-      if (alreadyExists) {
-        return current;
-      }
-      return mapActiveCourt(current, (selected) => ({
-        ...selected,
-        cameras: [...selected.cameras, { ...camera, id: makeId('camera'), isActive: true }],
-      }));
-    });
-    setEquipmentMessage('Câmera detectada adicionada.');
-  }
-
-  function addButton(): void {
-    if (!buttonNameInput.trim()) {
-      setEquipmentMessage('Informe o nome do botão.');
-      return;
-    }
-    const nextButton: EquipmentButton = {
-      id: makeId('button'),
-      name: buttonNameInput.trim(),
-      type: buttonTypeInput,
-      isActive: true,
-      gpioChip: buttonTypeInput === 'gpio' ? buttonChipInput.trim() || 'gpiochip0' : undefined,
-      gpioPin: buttonTypeInput === 'gpio' ? Number(buttonPinInput) : undefined,
-      activeLow: buttonTypeInput === 'gpio' ? true : undefined,
-    };
-    if (buttonTypeInput === 'gpio' && !Number.isInteger(nextButton.gpioPin)) {
-      setEquipmentMessage('GPIO inválido.');
-      return;
-    }
-
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        buttons: [...court.buttons, nextButton],
-        bindings: [...court.bindings, { buttonId: nextButton.id, cameraIds: [] }],
-      })),
-    );
-    setButtonNameInput('');
-    setEquipmentMessage('Botão adicionado.');
-  }
-
-  function toggleBinding(buttonId: string, cameraId: string, selected: boolean): void {
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        bindings: court.bindings.map((binding) => {
-          if (binding.buttonId !== buttonId) {
-            return binding;
-          }
-          const next = new Set(binding.cameraIds);
-          if (selected) {
-            next.add(cameraId);
-          } else {
-            next.delete(cameraId);
-          }
-          return { ...binding, cameraIds: [...next] };
-        }),
-      })),
-    );
-  }
-
-  function updateCamera(cameraId: string, updater: (camera: EquipmentCamera) => EquipmentCamera): void {
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        cameras: court.cameras.map((camera) => (camera.id === cameraId ? updater(camera) : camera)),
-      })),
-    );
-  }
-
-  function removeCamera(cameraId: string): void {
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        cameras: court.cameras.filter((camera) => camera.id !== cameraId),
-        bindings: court.bindings.map((binding) => ({
-          ...binding,
-          cameraIds: binding.cameraIds.filter((id) => id !== cameraId),
-        })),
-      })),
-    );
-    setEquipmentMessage('Câmera removida.');
-  }
-
-  function updateButton(buttonId: string, updater: (button: EquipmentButton) => EquipmentButton): void {
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        buttons: court.buttons.map((button) => (button.id === buttonId ? updater(button) : button)),
-      })),
-    );
-  }
-
-  function removeButton(buttonId: string): void {
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        buttons: court.buttons.filter((button) => button.id !== buttonId),
-        bindings: court.bindings.filter((binding) => binding.buttonId !== buttonId),
-      })),
-    );
-    setEquipmentMessage('Botão removido.');
-  }
-
   async function validateGpioPin(pin: number, chip?: string): Promise<void> {
     const result = await window.desktopApi.validateGpioPin(pin, chip);
     setEquipmentMessage(result.ok ? `GPIO válido: ${result.message}` : `Falha GPIO: ${result.message}`);
-  }
-
-  function addCourt(): void {
-    const name = courtNameInput.trim();
-    if (!name) {
-      setEquipmentMessage('Informe o nome da quadra.');
-      return;
-    }
-    const court = createCourt(`q${Date.now().toString(36)}`, name);
-    setEquipmentConfig((current) => ({
-      ...current,
-      activeCourtId: court.id,
-      courts: [...current.courts, court],
-    }));
-    setCourtNameInput('');
-    setEquipmentMessage('Quadra adicionada. Salve para guardar.');
-  }
-
-  function updateCourtCloud(field: keyof CourtCloud, value: string): void {
-    setEquipmentConfig((current) =>
-      mapActiveCourt(current, (court) => ({
-        ...court,
-        cloud: { ...court.cloud, [field]: value },
-      })),
-    );
-  }
-
-  function renameActiveCourt(name: string): void {
-    setEquipmentConfig((current) => mapActiveCourt(current, (court) => ({ ...court, name })));
   }
 
   async function saveEquipmentConfig(): Promise<void> {
     const saved = await window.desktopApi.saveEquipmentConfig(equipmentConfig);
     setEquipmentConfig(saved);
     setEquipmentMessage(
-      'Configuração salva. A quadra em uso, uma câmera nova ou um botão novo passam a gravar depois de reiniciar o serviço. O nome do vídeo leva a quadra, a câmera e o horário.',
+      'Configuração salva. A quadra em uso, uma câmera nova ou um botão novo passam a gravar depois de reiniciar o serviço. O bucket vale no próximo envio. O nome do vídeo leva a quadra, a câmera e o horário.',
     );
   }
 
@@ -564,44 +385,14 @@ export function App() {
       localLimit={formatBytes(publicConfig.storage.maxLocalBytes)}
       cloudBytes={formatBytes(cloudBytesEstimated)}
       cloudLimit={formatBytes(publicConfig.storage.maxCloudBytes)}
+      publicConfig={publicConfig}
       equipmentConfig={equipmentConfig}
       selectedCourtName={selectedCourt.name}
-      selectedCourtId={selectedCourt.id}
-      cameras={selectedCourt.cameras}
-      buttons={selectedCourt.buttons}
-      bindings={selectedCourt.bindings}
       discoveredCameras={discoveredCameras}
       equipmentMessage={equipmentMessage}
-      courtNameInput={courtNameInput}
-      cameraNameInput={cameraNameInput}
-      cameraDeviceInput={cameraDeviceInput}
-      buttonNameInput={buttonNameInput}
-      buttonTypeInput={buttonTypeInput}
-      buttonPinInput={buttonPinInput}
-      buttonChipInput={buttonChipInput}
-      publicConfig={publicConfig}
-      onCourt={(id) => setEquipmentConfig((current) => ({ ...current, activeCourtId: id }))}
-      onRenameCourt={renameActiveCourt}
-      onCourtNameInput={setCourtNameInput}
-      onAddCourt={addCourt}
-      onCloud={updateCourtCloud}
-      cloud={selectedCourt.cloud}
+      onEquipmentConfig={setEquipmentConfig}
       onDiscover={() => void refreshDiscovery()}
-      onAddDetected={addDetectedCamera}
-      onCameraName={setCameraNameInput}
-      onCameraDevice={setCameraDeviceInput}
-      onAddManualCamera={addManualCamera}
-      onUpdateCamera={updateCamera}
-      onRemoveCamera={removeCamera}
-      onButtonName={setButtonNameInput}
-      onButtonType={setButtonTypeInput}
-      onButtonPin={setButtonPinInput}
-      onButtonChip={setButtonChipInput}
-      onAddButton={addButton}
-      onValidateGpio={() => void validateGpioPin(Number(buttonPinInput), buttonChipInput)}
-      onUpdateButton={updateButton}
-      onRemoveButton={removeButton}
-      onToggleBinding={toggleBinding}
+      onValidateGpio={(pin, chip) => void validateGpioPin(pin, chip)}
       onSaveEquipment={() => void saveEquipmentConfig()}
     />
   );

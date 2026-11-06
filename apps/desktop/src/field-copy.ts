@@ -1,5 +1,5 @@
-export type Screen = 'jogo' | 'lances' | 'quadra' | 'ajustes';
-export type AdjustSection = 'menu' | 'envio' | 'rede' | 'saude' | 'versao';
+export type Screen = 'jogo' | 'lances' | 'cadastro' | 'ajustes';
+export type AdjustSection = 'menu' | 'rede' | 'saude' | 'versao';
 
 export function cameraLabel(status: string): string {
   if (status === 'online') {

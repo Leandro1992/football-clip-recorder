@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { normalizeEquipmentConfig, type EquipmentConfig } from '@football-clip-recorder/core';
+import { isCatalogEquipmentConfig, normalizeEquipmentConfig, type EquipmentConfig } from '@football-clip-recorder/core';
 
 export type {
   Court,
@@ -43,9 +43,7 @@ export class EquipmentStore {
     }
     try {
       const parsed: unknown = JSON.parse(payload);
-      const courts = parsed && typeof parsed === 'object' ? (parsed as { courts?: unknown }).courts : undefined;
-      const hasCourts = Array.isArray(courts) && courts.length > 0;
-      return { config: normalizeEquipmentConfig(parsed), persist: !hasCourts };
+      return { config: normalizeEquipmentConfig(parsed), persist: !isCatalogEquipmentConfig(parsed) };
     } catch {
       return { config: normalizeEquipmentConfig(this.defaultConfig), persist: false };
     }

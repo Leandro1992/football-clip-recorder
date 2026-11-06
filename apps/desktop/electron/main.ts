@@ -7,7 +7,6 @@ import {
   activeCourtCatalog,
   ClipRecorderApplication,
   ConsoleLogger,
-  keepStoredCloudSecrets,
   normalizeEquipmentConfig,
   type ApplicationStatus,
   type ClipMetadata,
@@ -252,7 +251,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('app:save-equipment-config', async (_event, equipmentConfig: EquipmentConfig) => {
-    const normalized = keepStoredCloudSecrets(equipmentConfigCache, normalizeEquipmentConfig(equipmentConfig));
+    const normalized = normalizeEquipmentConfig(equipmentConfig);
     await fs.writeFile(equipmentConfigPath, JSON.stringify(normalized, null, 2));
     equipmentConfigCache = normalized;
     clipRecorderApplication.setRecordingEnabled(

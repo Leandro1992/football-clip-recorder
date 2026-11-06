@@ -15,19 +15,22 @@ export {
   courtIdFromClipName,
   createCourt,
   formatClipStamp,
+  isCatalogEquipmentConfig,
   isCourtCloudReady,
-  keepStoredCloudSecrets,
   mapActiveCourt,
   normalizeEquipmentConfig,
   slugPart,
+  courtUploadTargets,
 } from './courts';
 export type {
   Court,
   CourtCatalog,
   CourtCloud,
+  CourtUploadTarget,
   EquipmentBinding,
   EquipmentButton,
   EquipmentCamera,
   EquipmentConfig,
+  StorageBucket,
 } from './courts';
 export * from './recording-fleet';

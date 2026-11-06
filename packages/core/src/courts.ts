@@ -28,17 +28,24 @@ export interface CourtCloud {
   secretAccessKey: string;
 }
 
+export interface StorageBucket extends CourtCloud {
+  id: string;
+  name: string;
+}
+
 export interface Court {
   id: string;
   name: string;
-  cloud: CourtCloud;
-  cameras: EquipmentCamera[];
-  buttons: EquipmentButton[];
-  bindings: EquipmentBinding[];
+  cameraIds: string[];
+  buttonIds: string[];
+  bucketId: string;
 }
 
 export interface EquipmentConfig {
   activeCourtId: string;
+  cameras: EquipmentCamera[];
+  buttons: EquipmentButton[];
+  buckets: StorageBucket[];
   courts: Court[];
 }
 
@@ -46,6 +53,11 @@ export interface CourtCatalog {
   cameras: EquipmentCamera[];
   buttons: EquipmentButton[];
   bindings: EquipmentBinding[];
+}
+
+export interface CourtUploadTarget {
+  id: string;
+  cloud: CourtCloud;
 }
 
 export const EMPTY_COURT_CLOUD: CourtCloud = {
@@ -128,7 +140,24 @@ export function activeCourt(config: EquipmentConfig): Court {
 
 export function activeCourtCatalog(config: EquipmentConfig): CourtCatalog {
   const court = activeCourt(config);
-  return { cameras: court.cameras, buttons: court.buttons, bindings: court.bindings };
+  const cameras = config.cameras.filter((camera) => court.cameraIds.includes(camera.id));
+  const buttons = config.buttons.filter((button) => court.buttonIds.includes(button.id));
+  const cameraIds = cameras.map((camera) => camera.id);
+  return {
+    cameras,
+    buttons,
+    bindings: buttons.map((button) => ({ buttonId: button.id, cameraIds })),
+  };
+}
+
+export function courtUploadTargets(config: EquipmentConfig): CourtUploadTarget[] {
+  return config.courts.map((court) => {
+    const bucket = config.buckets.find((item) => item.id === court.bucketId);
+    return {
+      id: court.id,
+      cloud: bucket ? cloudOf(bucket) : { ...EMPTY_COURT_CLOUD },
+    };
+  });
 }
 
 export function mapActiveCourt(config: EquipmentConfig, updater: (court: Court) => Court): EquipmentConfig {
@@ -140,25 +169,71 @@ export function mapActiveCourt(config: EquipmentConfig, updater: (court: Court) 
   };
 }
 
-export function keepStoredCloudSecrets(previous: EquipmentConfig, next: EquipmentConfig): EquipmentConfig {
-  const stored = new Map(previous.courts.map((court) => [court.id, court.cloud.secretAccessKey]));
+export function createCourt(id: string, name: string, bucketId = ''): Court {
   return {
-    ...next,
-    courts: next.courts.map((court) => {
-      if (court.cloud.secretAccessKey.trim()) {
-        return court;
-      }
-      const secret = stored.get(court.id);
-      if (!secret) {
-        return court;
-      }
-      return { ...court, cloud: { ...court.cloud, secretAccessKey: secret } };
-    }),
+    id,
+    name: name.trim() || 'Nova quadra',
+    cameraIds: [],
+    buttonIds: [],
+    bucketId,
+  };
+}
+
+export function isCatalogEquipmentConfig(input: unknown): boolean {
+  if (!input || typeof input !== 'object') {
+    return false;
+  }
+  const value = input as { buckets?: unknown; courts?: unknown };
+  if (!Array.isArray(value.buckets) || !Array.isArray(value.courts) || value.courts.length === 0) {
+    return false;
+  }
+  return value.courts.every((court) => {
+    if (!court || typeof court !== 'object') {
+      return false;
+    }
+    return Array.isArray((court as { cameraIds?: unknown }).cameraIds);
+  });
+}
+
+export function normalizeEquipmentConfig(input: unknown): EquipmentConfig {
+  if (isCatalogEquipmentConfig(input)) {
+    return normalizeCatalog(input as Record<string, unknown>);
+  }
+  return migrateNested(input);
+}
+
+function cloudOf(bucket: StorageBucket): CourtCloud {
+  return {
+    endpoint: bucket.endpoint,
+    bucket: bucket.bucket,
+    region: bucket.region,
+    accessKeyId: bucket.accessKeyId,
+    secretAccessKey: bucket.secretAccessKey,
   };
 }
 
 function asText(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value.trim() : fallback;
+}
+
+function uniqueIds(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const item of input) {
+    if (typeof item !== 'string') {
+      continue;
+    }
+    const id = item.trim();
+    if (!id || seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }
 
 function normalizeCloud(input: unknown): CourtCloud {
@@ -211,23 +286,65 @@ function normalizeButton(input: unknown): EquipmentButton | undefined {
   };
 }
 
-function normalizeBinding(input: unknown): EquipmentBinding | undefined {
+function normalizeBucket(input: unknown, fallbackId: string): StorageBucket | undefined {
   if (!input || typeof input !== 'object') {
     return undefined;
   }
-  const binding = input as Partial<EquipmentBinding>;
-  if (typeof binding.buttonId !== 'string' || !binding.buttonId.trim()) {
+  const bucket = input as Partial<StorageBucket>;
+  const id = asText(bucket.id, fallbackId);
+  if (!id) {
     return undefined;
   }
   return {
-    buttonId: binding.buttonId.trim(),
-    cameraIds: Array.isArray(binding.cameraIds)
-      ? binding.cameraIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
-      : [],
+    id,
+    name: asText(bucket.name, 'Bucket'),
+    ...normalizeCloud(bucket),
   };
 }
 
-function normalizeCourt(input: unknown, fallbackId: string): Court | undefined {
+function pushUnique<T extends { id: string }>(items: T[], next: T | undefined): void {
+  if (!next || items.some((item) => item.id === next.id)) {
+    return;
+  }
+  items.push(next);
+}
+
+function normalizeCatalog(input: Record<string, unknown>): EquipmentConfig {
+  const cameras = Array.isArray(input.cameras)
+    ? input.cameras.map(normalizeCamera).filter((camera): camera is EquipmentCamera => Boolean(camera))
+    : [];
+  const buttons = Array.isArray(input.buttons)
+    ? input.buttons.map(normalizeButton).filter((button): button is EquipmentButton => Boolean(button))
+    : [];
+  const buckets = Array.isArray(input.buckets)
+    ? input.buckets
+        .map((bucket, index) => normalizeBucket(bucket, `bucket-${index + 1}`))
+        .filter((bucket): bucket is StorageBucket => Boolean(bucket))
+    : [];
+  const cameraIds = new Set(cameras.map((camera) => camera.id));
+  const buttonIds = new Set(buttons.map((button) => button.id));
+  const bucketIds = new Set(buckets.map((bucket) => bucket.id));
+  const courts = (Array.isArray(input.courts) ? input.courts : [])
+    .map((court, index) => normalizeCourt(court, `quadra-${index + 1}`, cameraIds, buttonIds, bucketIds))
+    .filter((court): court is Court => Boolean(court));
+  const readyCourts = courts.length > 0 ? courts : [createCourt(DEFAULT_COURT_ID, 'Quadra principal', buckets[0]?.id ?? '')];
+  const requested = asText(input.activeCourtId);
+  return {
+    activeCourtId: readyCourts.some((court) => court.id === requested) ? requested : readyCourts[0].id,
+    cameras,
+    buttons,
+    buckets,
+    courts: readyCourts,
+  };
+}
+
+function normalizeCourt(
+  input: unknown,
+  fallbackId: string,
+  cameraIds: Set<string>,
+  buttonIds: Set<string>,
+  bucketIds: Set<string>,
+): Court | undefined {
   if (!input || typeof input !== 'object') {
     return undefined;
   }
@@ -236,57 +353,70 @@ function normalizeCourt(input: unknown, fallbackId: string): Court | undefined {
   if (!id) {
     return undefined;
   }
+  const bucketId = asText(court.bucketId);
   return {
     id,
     name: asText(court.name, 'Quadra'),
-    cloud: normalizeCloud(court.cloud),
-    cameras: Array.isArray(court.cameras) ? court.cameras.map(normalizeCamera).filter((camera): camera is EquipmentCamera => Boolean(camera)) : [],
-    buttons: Array.isArray(court.buttons) ? court.buttons.map(normalizeButton).filter((button): button is EquipmentButton => Boolean(button)) : [],
-    bindings: Array.isArray(court.bindings)
-      ? court.bindings.map(normalizeBinding).filter((binding): binding is EquipmentBinding => Boolean(binding))
-      : [],
+    cameraIds: uniqueIds(court.cameraIds).filter((cameraId) => cameraIds.has(cameraId)),
+    buttonIds: uniqueIds(court.buttonIds).filter((buttonId) => buttonIds.has(buttonId)),
+    bucketId: bucketIds.has(bucketId) ? bucketId : '',
   };
 }
 
-function legacyCourt(input: { cameras?: unknown; buttons?: unknown; bindings?: unknown }): Court {
-  const court = normalizeCourt(
-    {
-      id: DEFAULT_COURT_ID,
-      name: 'Quadra principal',
-      cloud: EMPTY_COURT_CLOUD,
-      cameras: input.cameras,
-      buttons: input.buttons,
-      bindings: input.bindings,
-    },
-    DEFAULT_COURT_ID,
-  );
-  return court ?? { id: DEFAULT_COURT_ID, name: 'Quadra principal', cloud: { ...EMPTY_COURT_CLOUD }, cameras: [], buttons: [], bindings: [] };
-}
-
-export function createCourt(id: string, name: string): Court {
+function migrateNested(input: unknown): EquipmentConfig {
+  const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const nested = Array.isArray(source.courts)
+    ? source.courts
+    : [
+        {
+          id: DEFAULT_COURT_ID,
+          name: 'Quadra principal',
+          cloud: EMPTY_COURT_CLOUD,
+          cameras: source.cameras,
+          buttons: source.buttons,
+        },
+      ];
+  const cameras: EquipmentCamera[] = [];
+  const buttons: EquipmentButton[] = [];
+  const buckets: StorageBucket[] = [];
+  const courts: Court[] = [];
+  nested.forEach((raw, index) => {
+    if (!raw || typeof raw !== 'object') {
+      return;
+    }
+    const court = raw as Record<string, unknown>;
+    const id = asText(court.id, `quadra-${index + 1}`);
+    const name = asText(court.name, 'Quadra');
+    const courtCameras = Array.isArray(court.cameras)
+      ? court.cameras.map(normalizeCamera).filter((camera): camera is EquipmentCamera => Boolean(camera))
+      : [];
+    const courtButtons = Array.isArray(court.buttons)
+      ? court.buttons.map(normalizeButton).filter((button): button is EquipmentButton => Boolean(button))
+      : [];
+    courtCameras.forEach((camera) => pushUnique(cameras, camera));
+    courtButtons.forEach((button) => pushUnique(buttons, button));
+    const bucket = normalizeBucket(
+      { id: `bucket-${id}`, name: `Bucket ${name}`, ...(normalizeCloud(court.cloud)) },
+      `bucket-${id}`,
+    );
+    if (bucket) {
+      pushUnique(buckets, bucket);
+    }
+    courts.push({
+      id,
+      name,
+      cameraIds: courtCameras.map((camera) => camera.id),
+      buttonIds: courtButtons.map((button) => button.id),
+      bucketId: bucket?.id ?? '',
+    });
+  });
+  const readyCourts = courts.length > 0 ? courts : [createCourt(DEFAULT_COURT_ID, 'Quadra principal')];
+  const requested = asText(source.activeCourtId);
   return {
-    id,
-    name: name.trim() || 'Nova quadra',
-    cloud: { ...EMPTY_COURT_CLOUD },
-    cameras: [],
-    buttons: [],
-    bindings: [],
+    activeCourtId: readyCourts.some((court) => court.id === requested) ? requested : readyCourts[0].id,
+    cameras,
+    buttons,
+    buckets,
+    courts: readyCourts,
   };
-}
-
-export function normalizeEquipmentConfig(input: unknown): EquipmentConfig {
-  if (!input || typeof input !== 'object') {
-    const court = createCourt(DEFAULT_COURT_ID, 'Quadra principal');
-    return { activeCourtId: court.id, courts: [court] };
-  }
-  const candidate = input as Partial<EquipmentConfig> & { cameras?: unknown; buttons?: unknown; bindings?: unknown };
-  const courts = Array.isArray(candidate.courts)
-    ? candidate.courts
-        .map((court, index) => normalizeCourt(court, `quadra-${index + 1}`))
-        .filter((court): court is Court => Boolean(court))
-    : [];
-  const ready = courts.length > 0 ? courts : [legacyCourt(candidate)];
-  const requested = asText(candidate.activeCourtId);
-  const activeCourtId = ready.some((court) => court.id === requested) ? requested : ready[0].id;
-  return { activeCourtId, courts: ready };
 }

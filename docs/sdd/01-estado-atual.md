@@ -40,13 +40,13 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 - Botão virtual da UI sempre pode disparar `POST /api/trigger`.
 - `BUTTON_PROVIDER=gpio` acrescenta `GpioButton` (pull-up, ativo em nível baixo, debounce). O doc de Pi registra que o botão físico ainda não foi ensaiado em hardware.
-- A tela Quadra persiste `runtime/equipment-config.json`: quadras, e dentro da quadra em uso as câmeras, os botões e o vínculo de cada câmera. O Cloudflare da quadra fica em Ajustes.
-- Cada quadra tem id, nome e o destino Cloudflare (endereço, bucket, região, access key e secret). O secret não entra no log. Se a quadra não tiver Cloudflare completo, o envio usa o `.env`.
-- Na subida, a configuração antiga sem quadras é gravada como a quadra principal, com as câmeras e os botões que já existiam. Sem arquivo, câmera e botão principais nascem do `.env` nessa quadra e o arquivo é criado.
+- A tela Cadastro persiste `runtime/equipment-config.json`: catálogos de câmeras, buckets e botões, e as quadras que associam esses itens. Uma quadra pode ter várias câmeras, um bucket e vários botões. Cada botão associado grava todas as câmeras ativas da quadra.
+- O bucket guarda o destino Cloudflare (endereço, nome do bucket, região, access key e secret). A key e o secret aparecem no formulário, que só abre depois do login. O secret não entra no log. Se o bucket associado estiver incompleto, o envio usa o `.env`.
+- Na subida, a configuração antiga sem quadras, ou com câmeras ainda dentro da quadra, é regravada no catálogo. A quadra principal continua associada ao que já existia. Sem arquivo, câmera, botão e um bucket vazio nascem do `.env`.
 - Sem nenhuma câmera `isActive`, a gravação de clipe fica desligada. A captura FFmpeg da câmera configurada no ambiente continua o fluxo de start.
 - A pipeline que gera o clipe é uma por câmera ativa vinculada a um botão ativo. Cada dispositivo é aberto uma vez, com segmentos e JPEG.
 - Um botão com várias câmeras gera um clipe de cada uma, e os clipes entram na fila de upload. Dois botões ativos no mesmo pino GPIO disparam a união dessas câmeras.
-- O arquivo do clipe começa com o nome da quadra, o nome da câmera e o horário local do registro. O envio usa o Cloudflare da quadra em que o clipe foi gravado.
+- O arquivo do clipe começa com o nome da quadra, o nome da câmera e o horário local do registro. O envio usa o bucket associado à quadra em que o clipe foi gravado.
 - O microfone fica na primeira câmera vinculada. As outras gravam só vídeo.
 - Em Jogo, cada uma dessas câmeras tem o próprio cartão. A falha de uma não esconde as outras.
 - Botões GPIO novos e câmeras novas no catálogo passam a gravar depois de reiniciar o serviço. Mudar o vínculo de câmeras que já estão abertas vale no próximo aperto.
@@ -60,15 +60,15 @@ A câmera concreta é `UsbCameraWindows` (DirectShow) ou `UsbCameraLinux` (v4l2,
 
 ## Interface
 
-A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera Jogo, Lances, Quadra e Ajustes. No celular a navegação fica fixa na base; numa tela larga, no topo. O desenho está em [03-design-system.md](03-design-system.md). Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
+A interface abre numa tela de login simples: nome do produto, usuário, senha e Entrar. Sessão válida libera Jogo, Lances, Cadastro e Ajustes. No celular a navegação fica fixa na base; numa tela larga, no topo. O desenho está em [03-design-system.md](03-design-system.md). Credencial inválida permanece na tela de login. Em desenvolvimento os campos iniciam com `admin` / `admin`.
 
 Jogo mostra um cartão por câmera visível, com o quadro inteiro, e o botão Registrar lance junto da imagem. Essa imagem é a referência para apontar a câmera. O JPEG da visualização tem no máximo `PREVIEW_WIDTH` (padrão 480) e atualiza a cada `PREVIEW_INTERVAL_SECONDS` (padrão 2 segundos). A resolução do clipe continua `VIDEO_WIDTH` por `VIDEO_HEIGHT`; o arquivo guarda `VIDEO_OUTPUT_FPS` quadros por segundo (padrão 15).
 
 Lances lista cada vídeo num cartão, com abrir, reenviar e exclusão no aparelho, na nuvem ou nos dois.
 
-Quadra escolhe a quadra em uso, as câmeras e qual botão grava cada uma. Salvar grava `runtime/equipment-config.json`.
+Cadastro tem quatro blocos: câmeras, buckets, botões e quadras. A quadra só é guardada com ao menos uma câmera, um bucket e um botão. Salvar no aparelho grava `runtime/equipment-config.json`.
 
-Ajustes reúne o Cloudflare da quadra em uso, a rede, a saúde e a atualização. A rede, no Raspberry, mostra o Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. Na rede da quadra, `http://olho-no-lance.local` abre a interface pelo endereço do aparelho nessa rede. A senha da quadra não entra no log. No Windows a mesma tela informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
+Ajustes reúne a rede, a saúde e a atualização. A rede, no Raspberry, mostra o Wi-Fi do aparelho (nome, senha e `http://olhonolance.admin`) e permite escolher a rede da quadra. A senha padrão dessa rede é `olhonolance`. O nome `olhonolance.admin` aponta para `192.168.4.1` só nessa rede. Na rede da quadra, `http://olho-no-lance.local` abre a interface pelo endereço do aparelho nessa rede. A senha da quadra não entra no log. No Windows a mesma tela informa que a rede direta existe no aparelho. A rede da quadra permanece a rota da sincronização.
 
 A atualização consulta a `main` só quando a tela é aberta. O botão Atualizar aparece quando a `main` está à frente e o aparelho não tem commit local. A compilação e a reinicialização rodam fora do processo da câmera. No Windows a tela informa que a atualização pela interface existe no Raspberry.
 

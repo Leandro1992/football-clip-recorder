@@ -15,5 +15,6 @@ Cada arquivo `NNNN-slug.md` é uma mudança de comportamento. O template é [_te
 | 0009 | Nome na rede do aparelho | concluida | [0009-nome-na-rede-do-aparelho.md](0009-nome-na-rede-do-aparelho.md) |
 | 0010 | Quadras no aparelho portátil | concluida | [0010-quadras.md](0010-quadras.md) |
 | 0011 | Interface de campo | concluida | [0011-interface-de-campo.md](0011-interface-de-campo.md) |
+| 0012 | Cadastros da quadra | concluida | [0012-cadastros-da-quadra.md](0012-cadastros-da-quadra.md) |
 
 Mantenha a tabela ordenada pelo ID.

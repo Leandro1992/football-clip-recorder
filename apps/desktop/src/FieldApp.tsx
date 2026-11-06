@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react';
 import type { ApplicationStatus } from '@football-clip-recorder/core';
-import type { CourtCloud } from '../../../packages/core/src/courts';
 import type {
   AuthSession,
   DiscoveredCamera,
-  EquipmentButton,
-  EquipmentCamera,
   EquipmentConfig,
   HostHealthReport,
   LivePreviewCard,
@@ -13,6 +10,7 @@ import type {
   RecordingDeleteScope,
   RecordingFile,
 } from '../electron/ipc-types';
+import { CadastroPanel } from './CadastroPanel';
 import { HealthPanel } from './HealthPanel';
 import { NetworkPanel } from './NetworkPanel';
 import { VersionPanel } from './VersionPanel';
@@ -29,12 +27,11 @@ import {
 const NAV: Array<{ id: Screen; label: string }> = [
   { id: 'jogo', label: 'Jogo' },
   { id: 'lances', label: 'Lances' },
-  { id: 'quadra', label: 'Quadra' },
+  { id: 'cadastro', label: 'Cadastro' },
   { id: 'ajustes', label: 'Ajustes' },
 ];
 
 const ADJUSTMENTS: Array<{ id: Exclude<AdjustSection, 'menu'>; title: string; detail: string }> = [
-  { id: 'envio', title: 'Envio dos vídeos', detail: 'Cloudflare da quadra em uso' },
   { id: 'rede', title: 'Rede', detail: 'Wi-Fi do aparelho e da quadra' },
   { id: 'saude', title: 'Saúde do aparelho', detail: 'Temperatura, disco e energia' },
   { id: 'versao', title: 'Atualização', detail: 'Trazer a versão nova' },
@@ -73,44 +70,14 @@ export function FieldApp(props: {
   localLimit: string;
   cloudBytes: string;
   cloudLimit: string;
+  publicConfig: PublicConfig;
   equipmentConfig: EquipmentConfig;
   selectedCourtName: string;
-  selectedCourtId: string;
-  cameras: EquipmentCamera[];
-  buttons: EquipmentButton[];
-  bindings: Array<{ buttonId: string; cameraIds: string[] }>;
   discoveredCameras: DiscoveredCamera[];
   equipmentMessage?: string;
-  courtNameInput: string;
-  cameraNameInput: string;
-  cameraDeviceInput: string;
-  buttonNameInput: string;
-  buttonTypeInput: 'virtual' | 'gpio';
-  buttonPinInput: string;
-  buttonChipInput: string;
-  publicConfig: PublicConfig;
-  onCourt: (id: string) => void;
-  onRenameCourt: (name: string) => void;
-  onCourtNameInput: (value: string) => void;
-  onAddCourt: () => void;
-  onCloud: (field: keyof CourtCloud, value: string) => void;
-  cloud: CourtCloud;
+  onEquipmentConfig: (config: EquipmentConfig) => void;
   onDiscover: () => void;
-  onAddDetected: (camera: DiscoveredCamera) => void;
-  onCameraName: (value: string) => void;
-  onCameraDevice: (value: string) => void;
-  onAddManualCamera: () => void;
-  onUpdateCamera: (id: string, updater: (camera: EquipmentCamera) => EquipmentCamera) => void;
-  onRemoveCamera: (id: string) => void;
-  onButtonName: (value: string) => void;
-  onButtonType: (value: 'virtual' | 'gpio') => void;
-  onButtonPin: (value: string) => void;
-  onButtonChip: (value: string) => void;
-  onAddButton: () => void;
-  onValidateGpio: () => void;
-  onUpdateButton: (id: string, updater: (button: EquipmentButton) => EquipmentButton) => void;
-  onRemoveButton: (id: string) => void;
-  onToggleBinding: (buttonId: string, cameraId: string, selected: boolean) => void;
+  onValidateGpio: (pin: number, chip?: string) => void;
   onSaveEquipment: () => void;
   logo: ReactNode;
 }) {
@@ -334,209 +301,16 @@ export function FieldApp(props: {
           </section>
         ) : null}
 
-        {props.screen === 'quadra' ? (
-          <section className="stack">
-            <article className="surface stack">
-              <strong>Quadra em uso</strong>
-              <label className="stack">
-                <span>Quadra</span>
-                <select className="form-select" value={props.selectedCourtId} onChange={(event) => props.onCourt(event.target.value)}>
-                  {props.equipmentConfig.courts.map((court) => (
-                    <option key={court.id} value={court.id}>
-                      {court.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="stack">
-                <span>Nome</span>
-                <input className="form-control" value={props.selectedCourtName} onChange={(event) => props.onRenameCourt(event.target.value)} />
-              </label>
-              <details className="advanced">
-                <summary>Nova quadra</summary>
-                <div className="stack">
-                  <input
-                    className="form-control"
-                    placeholder="Nome da nova quadra"
-                    value={props.courtNameInput}
-                    onChange={(event) => props.onCourtNameInput(event.target.value)}
-                  />
-                  <button className="btn-quiet" type="button" onClick={props.onAddCourt}>
-                    Adicionar quadra
-                  </button>
-                </div>
-              </details>
-            </article>
-
-            {props.cameras.every((camera) => !camera.isActive) ? (
-              <div className="alert-warn">Nenhuma câmera ativa. A gravação fica bloqueada até ativar uma.</div>
-            ) : null}
-
-            <article className="surface stack">
-              <div className="row-actions">
-                <strong>Câmeras</strong>
-                <button className="btn-quiet" type="button" onClick={props.onDiscover}>
-                  Procurar câmeras
-                </button>
-              </div>
-              {props.discoveredCameras.map((camera) => (
-                <div key={camera.deviceId} className="row-actions">
-                  <span>
-                    {camera.name} <span className="meta">{camera.deviceId}</span>
-                  </span>
-                  <button className="btn-quiet" type="button" onClick={() => props.onAddDetected(camera)}>
-                    Usar
-                  </button>
-                </div>
-              ))}
-              {props.cameras.length === 0 ? <p className="meta">Nenhuma câmera nesta quadra.</p> : null}
-              {props.cameras.map((camera) => (
-                <div key={camera.id} className="stack">
-                  <input
-                    className="form-control"
-                    value={camera.name}
-                    aria-label="Nome da câmera"
-                    onChange={(event) =>
-                      props.onUpdateCamera(camera.id, (current) => ({ ...current, name: event.target.value }))
-                    }
-                  />
-                  <details className="advanced">
-                    <summary>Dispositivo</summary>
-                    <input
-                      className="form-control"
-                      value={camera.deviceId}
-                      aria-label="Dispositivo da câmera"
-                      onChange={(event) =>
-                        props.onUpdateCamera(camera.id, (current) => ({ ...current, deviceId: event.target.value }))
-                      }
-                    />
-                  </details>
-                  <label className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={camera.isActive}
-                      onChange={(event) =>
-                        props.onUpdateCamera(camera.id, (current) => ({ ...current, isActive: event.target.checked }))
-                      }
-                    />
-                    <span>{camera.isActive ? 'Ativa' : 'Inativa'}</span>
-                  </label>
-                  {camera.isActive
-                    ? props.buttons.map((button) => {
-                        const binding = props.bindings.find((entry) => entry.buttonId === button.id);
-                        return (
-                          <label key={button.id} className="check-row">
-                            <input
-                              type="checkbox"
-                              checked={binding?.cameraIds.includes(camera.id) ?? false}
-                              onChange={(event) => props.onToggleBinding(button.id, camera.id, event.target.checked)}
-                            />
-                            <span>Grava com {button.name}</span>
-                          </label>
-                        );
-                      })
-                    : null}
-                  <button className="btn-danger-quiet" type="button" onClick={() => props.onRemoveCamera(camera.id)}>
-                    Remover câmera
-                  </button>
-                </div>
-              ))}
-              <details className="advanced">
-                <summary>Informar o dispositivo</summary>
-                <div className="stack">
-                  <input
-                    className="form-control"
-                    placeholder="Nome da câmera"
-                    value={props.cameraNameInput}
-                    onChange={(event) => props.onCameraName(event.target.value)}
-                  />
-                  <input
-                    className="form-control"
-                    placeholder="/dev/video0"
-                    value={props.cameraDeviceInput}
-                    onChange={(event) => props.onCameraDevice(event.target.value)}
-                  />
-                  <button className="btn-quiet" type="button" onClick={props.onAddManualCamera}>
-                    Adicionar
-                  </button>
-                </div>
-              </details>
-            </article>
-
-            <article className="surface stack">
-              <strong>Botões</strong>
-              <input
-                className="form-control"
-                placeholder="Nome do botão"
-                value={props.buttonNameInput}
-                onChange={(event) => props.onButtonName(event.target.value)}
-              />
-              <select
-                className="form-select"
-                value={props.buttonTypeInput}
-                onChange={(event) => props.onButtonType(event.target.value as 'virtual' | 'gpio')}
-              >
-                <option value="virtual">Botão da tela</option>
-                <option value="gpio">Botão físico</option>
-              </select>
-              {props.buttonTypeInput === 'gpio' ? (
-                <div className="stack">
-                  <input
-                    className="form-control"
-                    inputMode="numeric"
-                    aria-label="Pino GPIO"
-                    value={props.buttonPinInput}
-                    onChange={(event) => props.onButtonPin(event.target.value)}
-                  />
-                  <input
-                    className="form-control"
-                    aria-label="Chip GPIO"
-                    value={props.buttonChipInput}
-                    onChange={(event) => props.onButtonChip(event.target.value)}
-                  />
-                  <button className="btn-quiet" type="button" onClick={props.onValidateGpio}>
-                    Testar o pino
-                  </button>
-                </div>
-              ) : null}
-              <button className="btn-quiet" type="button" onClick={props.onAddButton}>
-                Adicionar botão
-              </button>
-              {props.buttons.map((button) => (
-                <div key={button.id} className="stack">
-                  <input
-                    className="form-control"
-                    value={button.name}
-                    aria-label="Nome do botão"
-                    onChange={(event) =>
-                      props.onUpdateButton(button.id, (current) => ({ ...current, name: event.target.value }))
-                    }
-                  />
-                  <p className="meta">
-                    {button.type === 'gpio' ? `Físico, pino ${button.gpioPin ?? '-'}` : 'Botão da tela'}
-                  </p>
-                  <label className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={button.isActive}
-                      onChange={(event) =>
-                        props.onUpdateButton(button.id, (current) => ({ ...current, isActive: event.target.checked }))
-                      }
-                    />
-                    <span>{button.isActive ? 'Ativo' : 'Inativo'}</span>
-                  </label>
-                  <button className="btn-danger-quiet" type="button" onClick={() => props.onRemoveButton(button.id)}>
-                    Remover botão
-                  </button>
-                </div>
-              ))}
-            </article>
-
-            <button className="btn-primary-field" type="button" onClick={props.onSaveEquipment}>
-              Salvar quadra
-            </button>
-            {props.equipmentMessage ? <div className="alert-note">{props.equipmentMessage}</div> : null}
-          </section>
+        {props.screen === 'cadastro' ? (
+          <CadastroPanel
+            config={props.equipmentConfig}
+            discoveredCameras={props.discoveredCameras}
+            message={props.equipmentMessage}
+            onChange={props.onEquipmentConfig}
+            onDiscover={props.onDiscover}
+            onValidateGpio={props.onValidateGpio}
+            onSave={props.onSaveEquipment}
+          />
         ) : null}
 
         {props.screen === 'ajustes' ? (
@@ -553,53 +327,6 @@ export function FieldApp(props: {
                 <button className="btn-quiet" type="button" onClick={() => props.onAdjustSection('menu')}>
                   Voltar
                 </button>
-                {props.adjustSection === 'envio' ? (
-                  <article className="surface stack">
-                    <strong>Envio de {props.selectedCourtName}</strong>
-                    <p className="meta">
-                      Se algum campo ficar vazio, os vídeos continuam indo para o destino geral do aparelho.
-                    </p>
-                    <label className="stack">
-                      <span>Endereço Cloudflare</span>
-                      <input
-                        className="form-control"
-                        placeholder="https://conta.r2.cloudflarestorage.com"
-                        value={props.cloud.endpoint}
-                        onChange={(event) => props.onCloud('endpoint', event.target.value)}
-                      />
-                    </label>
-                    <label className="stack">
-                      <span>Bucket</span>
-                      <input className="form-control" value={props.cloud.bucket} onChange={(event) => props.onCloud('bucket', event.target.value)} />
-                    </label>
-                    <label className="stack">
-                      <span>Região</span>
-                      <input className="form-control" value={props.cloud.region} onChange={(event) => props.onCloud('region', event.target.value)} />
-                    </label>
-                    <label className="stack">
-                      <span>Access key</span>
-                      <input
-                        className="form-control"
-                        value={props.cloud.accessKeyId}
-                        onChange={(event) => props.onCloud('accessKeyId', event.target.value)}
-                      />
-                    </label>
-                    <label className="stack">
-                      <span>Secret</span>
-                      <input
-                        className="form-control"
-                        type="password"
-                        placeholder="Em branco mantém o secret já salvo"
-                        value={props.cloud.secretAccessKey}
-                        onChange={(event) => props.onCloud('secretAccessKey', event.target.value)}
-                      />
-                    </label>
-                    <button className="btn-primary-field" type="button" onClick={props.onSaveEquipment}>
-                      Salvar envio
-                    </button>
-                    {props.equipmentMessage ? <div className="alert-note">{props.equipmentMessage}</div> : null}
-                  </article>
-                ) : null}
                 {props.adjustSection === 'rede' ? <NetworkPanel /> : null}
                 {props.adjustSection === 'saude' ? <HealthPanel report={props.hostHealth} error={props.hostHealthError} /> : null}
                 {props.adjustSection === 'versao' ? <VersionPanel /> : null}

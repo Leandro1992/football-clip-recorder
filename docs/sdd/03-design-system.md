@@ -47,8 +47,8 @@ Quatro destinos, sempre visíveis:
 | --- | --- |
 | Jogo | Ver a câmera e registrar o lance |
 | Lances | Ver, abrir, reenviar e apagar vídeos |
-| Quadra | Escolher a quadra, as câmeras e os botões |
-| Ajustes | Envio, rede, saúde e atualização |
+| Cadastro | Câmeras, buckets, botões e a quadra que associa os três |
+| Ajustes | Rede, saúde e atualização |
 
 No celular, a barra fica fixa na base. A partir de 900 px, os mesmos quatro itens ficam no topo.
 
@@ -66,6 +66,6 @@ No celular, a barra fica fixa na base. A partir de 900 px, os mesmos quatro iten
 
 **Lances.** Um cartão por vídeo: quadra, câmera, horário, tamanho e se já subiu. Abrir e Reenviar ficam no cartão. Apagar pede a seleção e o destino: aparelho, nuvem ou os dois.
 
-**Quadra.** A quadra em uso é o primeiro controle. Cada câmera mostra o nome, se está ativa e quais botões a gravam. Salvar fica no fim, em largura total.
+**Cadastro.** Câmeras, buckets e botões ficam em blocos separados. A quadra é o último bloco e só associa itens já cadastrados. Access key e secret aparecem em texto no bucket. Salvar fica no fim, em largura total.
 
 **Ajustes.** Uma lista: envio da quadra em uso, rede, saúde do aparelho, atualização. Cada item abre a própria tela e volta para a lista.
